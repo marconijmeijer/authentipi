@@ -15,6 +15,25 @@
   var badgedElements = new WeakSet();
   var debounceTimer = null;
 
+  // Configurable via the AuthentiPi settings page (Instellingen). These
+  // defaults apply until (if) the real config loads.
+  var badgeConfig = {
+    icon: "✓",
+    text: "Content Credentials",
+    text_color: "#111111",
+    bg_color: "#ffd400",
+  };
+  fetch(API_BASE + "/api/marker-settings")
+    .then(function (resp) {
+      return resp.ok ? resp.json() : null;
+    })
+    .then(function (cfg) {
+      if (cfg) badgeConfig = cfg;
+    })
+    .catch(function () {
+      /* keep defaults */
+    });
+
   function absoluteUrl(img) {
     try {
       return new URL(img.getAttribute("src"), document.baseURI).href;
@@ -34,13 +53,13 @@
     wrapper.appendChild(img);
 
     var badge = document.createElement("div");
-    badge.textContent = "✓ Content Credentials";
+    badge.textContent = (badgeConfig.icon ? badgeConfig.icon + " " : "") + badgeConfig.text;
     badge.title = mark.claim_generator
       ? "Bron: " + mark.claim_generator
       : "C2PA Content Credentials gevonden";
     badge.style.cssText =
       "position:absolute;top:4px;right:4px;z-index:2147483647;" +
-      "background:rgba(15,17,21,0.85);color:#6ea8fe;" +
+      "background:" + badgeConfig.bg_color + ";color:" + badgeConfig.text_color + ";" +
       "font:600 11px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;" +
       "padding:2px 6px;border-radius:999px;pointer-events:none;" +
       "box-shadow:0 1px 3px rgba(0,0,0,0.4);";

@@ -26,6 +26,19 @@ class CategoryState(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class MarkerSettings(Base):
+    """Singleton row (id=1) configuring how marker.js badges flagged
+    content in the client's browser."""
+
+    __tablename__ = "marker_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    icon: Mapped[str] = mapped_column(String, default="✓")
+    text: Mapped[str] = mapped_column(String, default="Content Credentials")
+    text_color: Mapped[str] = mapped_column(String, default="#111111")
+    bg_color: Mapped[str] = mapped_column(String, default="#ffd400")
+
+
 class ImageMark(Base):
     """A C2PA Content Credentials manifest found by the mitmproxy addon
     while inspecting an image/video response in transit."""

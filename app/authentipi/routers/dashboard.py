@@ -9,9 +9,10 @@ from sqlalchemy import select
 
 from .. import config
 from ..db import SessionLocal
-from ..models import CategoryState, Detection, ImageMark
+from ..models import CategoryState, Detection, ImageMark, MarkerSettings
 from ..rules import ruleset
 from .api import stats
+from .marker_settings import _as_dict as marker_settings_dict
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -93,13 +94,14 @@ def settings(request: Request):
         states = {
             s.category: s.enabled for s in session.execute(select(CategoryState)).scalars()
         }
+        marker = marker_settings_dict(session.get(MarkerSettings, 1))
     categories = [
         {"category": c, "enabled": states.get(c, True)} for c in config.KNOWN_CATEGORIES
     ]
     return templates.TemplateResponse(
         request,
         "settings.html",
-        {"categories": categories, "rules": ruleset.all_entries()},
+        {"categories": categories, "rules": ruleset.all_entries(), "marker": marker},
     )
 
 
@@ -113,5 +115,26 @@ def update_categories(request: Request, enabled_categories: list[str] = Form(def
                 session.add(CategoryState(category=category, enabled=is_enabled))
             else:
                 state.enabled = is_enabled
+        session.commit()
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@router.post("/settings/marker")
+def update_marker_settings(
+    request: Request,
+    icon: str = Form(""),
+    text: str = Form("Content Credentials"),
+    text_color: str = Form("#111111"),
+    bg_color: str = Form("#ffd400"),
+):
+    with SessionLocal() as session:
+        row = session.get(MarkerSettings, 1)
+        if row is None:
+            row = MarkerSettings(id=1)
+            session.add(row)
+        row.icon = icon
+        row.text = text
+        row.text_color = text_color
+        row.bg_color = bg_color
         session.commit()
     return RedirectResponse(url="/settings", status_code=303)

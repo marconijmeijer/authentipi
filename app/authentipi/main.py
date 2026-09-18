@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from . import log_watcher
 from .db import init_db
 from .rules import ruleset
-from .routers import api, dashboard, marks
+from .routers import api, dashboard, marker_settings, marks
 
 logging.basicConfig(level=logging.INFO)
 
@@ -46,3 +46,4 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 app.include_router(api.router)
 app.include_router(dashboard.router)
 app.include_router(marks.router)
+app.include_router(marker_settings.router)
