@@ -123,25 +123,23 @@ def heuristic_marks_partial(request: Request, offset: int = 0, limit: int = PAGE
 
 
 @router.get("/settings")
-def settings(request: Request):
+def settings_index():
+    return RedirectResponse(url="/settings/categories", status_code=303)
+
+
+@router.get("/settings/categories")
+def settings_categories(request: Request):
     with SessionLocal() as session:
         states = {
             s.category: s.enabled for s in session.execute(select(CategoryState)).scalars()
         }
-        marker = marker_settings_dict(session.get(MarkerSettings, 1))
-        heuristic = heuristic_settings_dict(session.get(HeuristicMarkerSettings, 1))
     categories = [
         {"category": c, "enabled": states.get(c, True)} for c in config.KNOWN_CATEGORIES
     ]
     return templates.TemplateResponse(
         request,
-        "settings.html",
-        {
-            "categories": categories,
-            "rules": ruleset.all_entries(),
-            "marker": marker,
-            "heuristic": heuristic,
-        },
+        "settings_categories.html",
+        {"categories": categories, "active": "categories"},
     )
 
 
@@ -156,7 +154,16 @@ def update_categories(request: Request, enabled_categories: list[str] = Form(def
             else:
                 state.enabled = is_enabled
         session.commit()
-    return RedirectResponse(url="/settings", status_code=303)
+    return RedirectResponse(url="/settings/categories", status_code=303)
+
+
+@router.get("/settings/marker")
+def settings_marker(request: Request):
+    with SessionLocal() as session:
+        marker = marker_settings_dict(session.get(MarkerSettings, 1))
+    return templates.TemplateResponse(
+        request, "settings_marker.html", {"marker": marker, "active": "marker"}
+    )
 
 
 @router.post("/settings/marker")
@@ -177,7 +184,16 @@ def update_marker_settings(
         row.text_color = text_color
         row.bg_color = bg_color
         session.commit()
-    return RedirectResponse(url="/settings", status_code=303)
+    return RedirectResponse(url="/settings/marker", status_code=303)
+
+
+@router.get("/settings/heuristic")
+def settings_heuristic(request: Request):
+    with SessionLocal() as session:
+        heuristic = heuristic_settings_dict(session.get(HeuristicMarkerSettings, 1))
+    return templates.TemplateResponse(
+        request, "settings_heuristic.html", {"heuristic": heuristic, "active": "heuristic"}
+    )
 
 
 @router.post("/settings/heuristic")
@@ -204,4 +220,11 @@ def update_heuristic_settings(
         row.enabled = enabled == "on"
         row.debug = debug == "on"
         session.commit()
-    return RedirectResponse(url="/settings", status_code=303)
+    return RedirectResponse(url="/settings/heuristic", status_code=303)
+
+
+@router.get("/settings/rules")
+def settings_rules(request: Request):
+    return templates.TemplateResponse(
+        request, "settings_rules.html", {"rules": ruleset.all_entries(), "active": "rules"}
+    )

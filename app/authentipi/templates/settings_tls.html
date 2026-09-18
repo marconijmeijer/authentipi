@@ -1,0 +1,52 @@
+{% extends "settings_layout.html" %}
+{% block settings_content %}
+<h2>TLS-uitzonderingen</h2>
+<p>Laat vertrouwde diensten rechtstreeks versleuteld verbinden. Voor deze hostnamen wordt content niet geïnspecteerd of gemarkeerd. Een uitzondering geldt voor de exacte hostnaam en poort, niet automatisch voor subdomeinen.</p>
+{% if error %}<p class="notice notice-error" role="alert">{{ error }}</p>{% endif %}
+{% if saved %}<p class="notice" role="status">Opgeslagen. De proxy haalt wijzigingen elke 3 seconden op. Open de betreffende app opnieuw om nieuwe verbindingen te maken.</p>{% endif %}
+<h3>Groepen</h3>
+{% for group in groups %}
+<section class="tls-group">
+<form method="post" action="/settings/tls/groups" class="compact-form">
+<input type="hidden" name="group_id" value="{{ group.id }}">
+<label class="field-row">Groepsnaam<input name="name" type="text" value="{{ group.name }}" required maxlength="60"></label>
+<label class="checkbox-row"><input type="checkbox" name="enabled" {% if group.enabled %}checked{% endif %}> Uitzonderingen in deze groep actief</label>
+<button>Groep opslaan</button>
+</form>
+<ul class="exception-list">
+{% for entry in entries if entry.group_id == group.id %}
+<li><code>{{ entry.host }}:{{ entry.port }}</code><form method="post" action="/settings/tls/entries/{{ entry.id }}/delete"><button class="secondary" aria-label="Verwijder {{ entry.host }}">Verwijderen</button></form></li>
+{% else %}<li class="hint">Deze groep heeft nog geen uitzonderingen.</li>{% endfor %}
+</ul>
+<form method="post" action="/settings/tls/groups/{{ group.id }}/delete" onsubmit="return confirm('Groep en alle bijbehorende uitzonderingen verwijderen?')"><button class="secondary">Groep verwijderen</button></form>
+</section>
+{% endfor %}
+<details class="tls-group"><summary>Nieuwe groep</summary>
+<form method="post" action="/settings/tls/groups"><label class="field-row">Naam<input type="text" name="name" required maxlength="60" placeholder="Bijvoorbeeld: Bankieren"></label><input type="hidden" name="enabled" value="on"><button>Groep toevoegen</button></form>
+</details>
+<h3>Uitzondering toevoegen of verplaatsen</h3>
+<form method="post" action="/settings/tls/entries">
+<label class="field-row">Hostnaam<input type="text" name="host" required maxlength="300" placeholder="Bijvoorbeeld: apps.mzstatic.com"></label>
+<p class="hint">Een HTTPS-URL zonder pad mag ook. Wildcards en URL-paden worden niet geaccepteerd.</p>
+<label class="field-row">Poort<input type="number" name="port" min="1" max="65535" value="443" required></label>
+<label class="field-row">Groep<select name="group_id" required>{% for group in groups %}<option value="{{ group.id }}">{{ group.name }}{% if not group.enabled %} (uitgeschakeld){% endif %}</option>{% endfor %}</select></label>
+<button {% if not groups %}disabled{% endif %}>Uitzondering opslaan</button>
+</form>
+<div class="section-heading tls-log-heading"><h3>TLS-fouten</h3><a class="page-btn" href="/settings/tls#tls-log">Log vernieuwen</a></div>
+<p class="hint">De laatste 100 host/poort/foutzijde-combinaties, met aantallen en laatste melding (UTC). Nieuwe fouten worden vanaf deze versie vastgelegd; oude Docker-logs worden niet geïmporteerd. Een TLS-fout bewijst op zichzelf geen certificate pinning.</p>
+<div class="tls-errors" id="tls-log">
+{% for failure in failures %}
+<article class="tls-group">
+<strong class="tls-host">{{ failure.host }}:{{ failure.port }}</strong>
+<p class="hint">{{ failure.last_seen.strftime('%d-%m-%Y %H:%M:%S') }} UTC · {{ failure.count }}× · {{ 'Client → proxy' if failure.side == 'client' else 'Proxy → server' }} · Client {{ failure.client_ip }}</p>
+<p class="tls-message">{{ failure.message }}</p>
+{% if (failure.host, failure.port) in assigned %}<span class="badge">Staat al in een groep</span>{% endif %}
+<form method="post" action="/settings/tls/entries" class="log-action">
+<input type="hidden" name="host" value="{{ failure.host }}"><input type="hidden" name="port" value="{{ failure.port }}">
+<label>Groep<select name="group_id" required aria-label="Groep voor {{ failure.host }}">{% for group in groups %}<option value="{{ group.id }}" {% if assigned.get((failure.host, failure.port)) == group.id %}selected{% endif %}>{{ group.name }}{% if not group.enabled %} (uitgeschakeld){% endif %}</option>{% endfor %}</select></label>
+<button {% if not groups %}disabled{% endif %}>{{ 'Verplaatsen' if (failure.host, failure.port) in assigned else 'Toevoegen aan uitzonderingen' }}</button>
+</form>
+</article>
+{% else %}<p class="notice">Nog geen TLS-fouten geregistreerd. Open een app met de proxy aan en vernieuw daarna dit log.</p>{% endfor %}
+</div>
+{% endblock %}

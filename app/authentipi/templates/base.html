@@ -2,21 +2,24 @@
 <html lang="nl">
 <head>
   <meta charset="utf-8" />
+  <meta name="color-scheme" content="light dark" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}AuthentiPi{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css" />
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
 </head>
 <body>
+  <a class="skip-link" href="#main">Naar inhoud</a>
   <header class="topbar">
-    <div class="brand">AuthentiPi</div>
-    <nav>
-      <a href="/">Dashboard</a>
-      <a href="/settings">Instellingen</a>
+    <a class="brand" href="/" aria-label="AuthentiPi — dashboard"><span class="brand-icon" aria-hidden="true">A</span>Authenti<span>Pi</span></a>
+    <nav aria-label="Hoofdnavigatie">
+      <a href="/" {% if request.url.path == "/" %}aria-current="page"{% endif %}>Dashboard</a>
+      <a href="/settings" {% if request.url.path.startswith("/settings") %}aria-current="page"{% endif %}>Instellingen</a>
     </nav>
   </header>
-  <main>
+  <main id="main">
     {% block content %}{% endblock %}
   </main>
+  <footer class="site-footer"><span>AuthentiPi · Inzicht in je content</span><span>Weergave volgt je systeeminstelling</span></footer>
 </body>
 </html>

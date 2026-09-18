@@ -4,6 +4,8 @@ ENV PYTHONUNBUFFERED=1
 
 RUN pip install --no-cache-dir c2pa-python==0.37.10 requests==2.32.3
 
+COPY tls_manager.py /addons/tls_manager.py
+
 COPY authentipi_addon.py /addons/authentipi_addon.py
 
 EXPOSE 8081

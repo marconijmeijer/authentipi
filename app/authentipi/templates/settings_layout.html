@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}AuthentiPi — Instellingen{% endblock %}
+{% block content %}
+  <div class="page-heading"><div><p class="eyebrow">Jouw voorkeuren</p><h1>Instellingen</h1><p>Stem detectie en markeringen af op jouw netwerk.</p></div></div>
+  <div class="settings-layout">
+    <nav class="settings-sidebar" aria-label="Instellingen">
+      <a href="/settings/categories" {% if active == 'categories' %}class="active" aria-current="page"{% endif %}>Categorieën</a>
+      <a href="/settings/marker" {% if active == 'marker' %}class="active" aria-current="page"{% endif %}>Content-marking badge</a>
+      <a href="/settings/heuristic" {% if active == 'heuristic' %}class="active" aria-current="page"{% endif %}>Experimentele AI-herkenning</a>
+      <a href="/settings/rules" {% if active == 'rules' %}class="active" aria-current="page"{% endif %}>Domeinlijst</a>
+      <a href="/settings/tls" {% if active == 'tls' %}class="active" aria-current="page"{% endif %}>TLS-uitzonderingen</a>
+    </nav>
+    <div class="settings-panel">
+      {% block settings_content %}{% endblock %}
+    </div>
+  </div>
+{% endblock %}

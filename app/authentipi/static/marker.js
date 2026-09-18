@@ -10,30 +10,16 @@
   //    statistical guess, not a verified claim -- kept visually distinct
   //    from the c2pa badge on purpose).
 
-  var currentScript = document.currentScript;
-  if (!currentScript) return;
-
-  var API_BASE = new URL(currentScript.src).origin;
+  // Same-origin, relative path -- the proxy addon intercepts anything
+  // under this prefix and reverse-proxies it to the AuthentiPi backend
+  // itself, regardless of which real site is being visited. This means
+  // every request this script makes automatically inherits the current
+  // page's own scheme (http/https) and host, which is required: fetching
+  // an absolute http://<lan-ip> URL from an https:// page is "mixed
+  // content" and gets silently blocked by the browser.
+  var API_BASE = "/__authentipi";
   var BATCH_SIZE = 40;
   var badgedElements = new WeakSet();
-
-  // --- TEMPORARY diagnostics (remove once badge-visibility issues on real
-  // sites are confirmed fixed): reports what this script actually saw in a
-  // real browser to the backend log, since we can't open devtools remotely.
-  function reportDebug(payload) {
-    try {
-      payload.page = location.href;
-      fetch(API_BASE + "/api/client-debug", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).catch(function () {});
-    } catch (e) {
-      /* never let diagnostics break the page */
-    }
-  }
-
-  reportDebug({ event: "marker.js started", apiBase: API_BASE });
 
   function absoluteUrl(img) {
     // currentSrc is the URL the browser actually picked/loaded -- for a
@@ -88,37 +74,22 @@
       })
       .then(function (cfg) {
         if (cfg) config = cfg;
-        reportDebug({ source: opts.name, configLoaded: !!cfg });
       })
-      .catch(function (err) {
-        reportDebug({ source: opts.name, configError: String(err) });
+      .catch(function () {
+        /* keep defaults */
       });
 
     function checkBatch(images) {
       var urls = [];
       var byUrl = {};
-      var noUrl = 0;
       images.forEach(function (img) {
         var url = absoluteUrl(img);
-        if (!url) {
-          noUrl++;
-          return;
-        }
-        if (badgedUrls.has(url)) return;
+        if (!url || badgedUrls.has(url)) return;
         if (byUrl[url] === undefined) {
           urls.push(url);
           byUrl[url] = [];
         }
         byUrl[url].push(img);
-      });
-
-      reportDebug({
-        source: opts.name,
-        totalImages: images.length,
-        imagesWithNoUrl: noUrl,
-        urlsToCheck: urls.length,
-        alreadyBadged: badgedUrls.size,
-        sampleUrls: urls.slice(0, 5),
       });
 
       if (urls.length === 0) return;
@@ -128,10 +99,9 @@
         var qs = encodeURIComponent(slice.join(","));
         fetch(API_BASE + opts.checkUrl + qs)
           .then(function (resp) {
-            return resp.ok ? resp.json() : Promise.reject(new Error("http " + resp.status));
+            return resp.ok ? resp.json() : [];
           })
           .then(function (marks) {
-            reportDebug({ source: opts.name, checkResultCount: marks.length });
             marks.forEach(function (mark) {
               badgedUrls.add(mark.url);
               var rendered = opts.render(mark, config);
@@ -140,8 +110,8 @@
               });
             });
           })
-          .catch(function (err) {
-            reportDebug({ source: opts.name, checkError: String(err) });
+          .catch(function () {
+            /* best-effort; a failed check should never break the page */
           });
       }
     }

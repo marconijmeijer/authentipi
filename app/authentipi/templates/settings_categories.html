@@ -1,0 +1,14 @@
+{% extends "settings_layout.html" %}
+{% block settings_content %}
+  <h2>Categorieën</h2>
+  <p>Zet categorieën uit om detecties van dat type niet meer te loggen.</p>
+  <form method="post" action="/settings/categories">
+    {% for c in categories %}
+    <label class="checkbox-row">
+      <input type="checkbox" name="enabled_categories" value="{{ c.category }}" {% if c.enabled %}checked{% endif %} />
+      {{ c.category }}
+    </label>
+    {% endfor %}
+    <button type="submit">Opslaan</button>
+  </form>
+{% endblock %}

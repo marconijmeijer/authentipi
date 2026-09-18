@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, String
+from sqlalchemy import Boolean, DateTime, Float, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base
@@ -106,3 +106,37 @@ class HeuristicMark(Base):
     # False for rows only reported because debug mode was on -- the score
     # didn't actually cross the configured threshold at report time.
     above_threshold: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class TLSMigration(Base):
+    __tablename__ = 'tls_migration'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+
+class TLSGroup(Base):
+    __tablename__ = 'tls_groups'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(60), unique=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class TLSException(Base):
+    __tablename__ = 'tls_exceptions'
+    __table_args__ = (UniqueConstraint('host', 'port'),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    group_id: Mapped[int] = mapped_column(Integer, index=True)
+    host: Mapped[str] = mapped_column(String(253))
+    port: Mapped[int] = mapped_column(Integer, default=443)
+
+
+class TLSFailure(Base):
+    __tablename__ = 'tls_failures'
+    __table_args__ = (UniqueConstraint('host', 'port', 'side'),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    host: Mapped[str] = mapped_column(String(253))
+    port: Mapped[int] = mapped_column(Integer)
+    side: Mapped[str] = mapped_column(String(10))
+    message: Mapped[str] = mapped_column(String(1000))
+    client_ip: Mapped[str] = mapped_column(String(64))
+    count: Mapped[int] = mapped_column(Integer, default=0)
+    last_seen: Mapped[datetime.datetime] = mapped_column(DateTime, index=True)

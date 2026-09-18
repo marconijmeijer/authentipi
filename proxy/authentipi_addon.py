@@ -36,11 +36,21 @@ INTERNAL_APP_URL = os.environ.get("AUTHENTIPI_INTERNAL_APP_URL", "http://app:808
 # if unset or unreachable, this feature is simply skipped.
 CLASSIFIER_URL = os.environ.get("AUTHENTIPI_CLASSIFIER_URL", "http://classifier:8082")
 
-# Reachable by CLIENT BROWSERS on the LAN (used in the injected <script src>
-# tag, and by marker.js itself for its own fetch() calls back to the API).
-# Must be overridden to the host's LAN IP for real multi-device use.
-PUBLIC_APP_URL = os.environ.get("AUTHENTIPI_APP_BASE_URL", "http://localhost:8080")
-MARKER_SCRIPT_TAG = f'<script src="{PUBLIC_APP_URL}/static/marker.js"></script>'.encode()
+# Any request whose path starts with this is served directly by the addon
+# itself (reverse-proxied to the app backend) instead of being forwarded to
+# whatever real site the client thinks it's talking to. Using a relative,
+# same-origin path -- rather than an absolute http://<lan-ip>:8080 URL --
+# means marker.js and its API calls always inherit the current page's own
+# scheme and host. That matters concretely: an HTTPS page loading an
+# http:// script or fetch()ing an http:// URL is "mixed content", which
+# browsers block outright and silently (no visible error on the page,
+# console-only) -- which is exactly why badges never appeared on any real
+# HTTPS site before this. Since this proxy is already MITM-ing the TLS
+# connection for whatever domain the client is visiting, it can terminate
+# these same-origin requests directly, over that domain's own HTTPS,
+# without needing a certificate of its own or a fixed LAN-IP setting.
+PROXY_PATH_PREFIX = "/__authentipi"
+MARKER_SCRIPT_TAG = f'<script src="{PROXY_PATH_PREFIX}/static/marker.js"></script>'.encode()
 
 # Some sites deliver CSP via a <meta> tag instead of (or in addition to) a
 # response header -- stripping only the header misses those and the
@@ -121,6 +131,10 @@ class AuthentiPiAddon:
         self._context = _build_context()
 
     def request(self, flow: http.HTTPFlow) -> None:
+        if flow.request.path.startswith(PROXY_PATH_PREFIX):
+            self._serve_from_app(flow)
+            return
+
         # Without this, a browser that already has an image cached from
         # before AuthentiPi was set up may serve it locally or via a
         # conditional GET (304 Not Modified, empty body) forever -- the
@@ -130,17 +144,50 @@ class AuthentiPiAddon:
         flow.request.headers.pop("If-None-Match", None)
         flow.request.headers.pop("If-Modified-Since", None)
 
-    def response(self, flow: http.HTTPFlow) -> None:
-        if flow.response is None or not flow.response.content:
+    def _serve_from_app(self, flow: http.HTTPFlow) -> None:
+        """Reverse-proxy anything under PROXY_PATH_PREFIX to the app
+        backend, and short-circuit -- the client's request never reaches
+        whatever real site it nominally targeted. This is what makes
+        marker.js and its API calls same-origin (and thus HTTPS, matching
+        whatever page they're loaded from) without AuthentiPi needing its
+        own trusted certificate."""
+        sub_path = flow.request.path[len(PROXY_PATH_PREFIX):] or "/"
+        # Third-party pages may only reach the read-only marker endpoints.
+        allowed = {"/static/marker.js", "/api/marks/check", "/api/marker-settings",
+                   "/api/heuristic-marks/check", "/api/heuristic-settings"}
+        if flow.request.method != "GET" or sub_path.split("?", 1)[0] not in allowed:
+            flow.response = http.Response.make(404, b"Not found")
+            return
+        target = f"{INTERNAL_APP_URL}{sub_path}"
+        try:
+            upstream = requests.request(
+                method=flow.request.method,
+                url=target,
+                data=flow.request.content,
+                headers={
+                    k: v
+                    for k, v in flow.request.headers.items()
+                    if k.lower() not in ("host", "content-length")
+                },
+                timeout=10,
+            )
+        except requests.RequestException:
+            logger.warning("AuthentiPi backend onbereikbaar voor %s", target)
+            flow.response = http.Response.make(
+                502, b"AuthentiPi backend unreachable", {"Content-Type": "text/plain"}
+            )
             return
 
-        if flow.request.path.endswith("/static/marker.js"):
-            # Belt-and-braces: the app already sends Cache-Control: no-store
-            # for this file itself, but strip here too in case anything
-            # between the client and the app (this proxy included, if
-            # AuthentiPi's own dashboard traffic happens to route through
-            # it too) would otherwise let a stale cached copy stick around.
-            self._strip_cache_headers(flow)
+        headers = {
+            k: v
+            for k, v in upstream.headers.items()
+            if k.lower() not in ("content-length", "transfer-encoding", "content-encoding")
+        }
+        headers["Cache-Control"] = "no-store"
+        flow.response = http.Response.make(upstream.status_code, upstream.content, headers)
+
+    def response(self, flow: http.HTTPFlow) -> None:
+        if flow.response is None or not flow.response.content:
             return
 
         content_type = (

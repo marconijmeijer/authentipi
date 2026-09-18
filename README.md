@@ -168,25 +168,7 @@ afbeeldingen te controleren op C2PA-manifesten en ze direct op de pagina te
 markeren. Dit is ingrijpender dan de DNS-laag: al het verkeer van een client
 die de proxy gebruikt, wordt ontsleuteld en geïnspecteerd.
 
-### 1. Publiek adres instellen (verplicht voor een ander apparaat dan de host)
-
-De proxy injecteert een `<script src="...">`-tag in elke pagina. Standaard
-wijst die naar `http://localhost:8080` — dat werkt alleen als je vanaf
-dezelfde machine test. Test je vanaf een ander apparaat (telefoon, tablet),
-dan wijst "localhost" op dát apparaat naar zichzelf, niet naar AuthentiPi —
-het script laadt dan stil niet, en er verschijnt nooit een badge, ook al
-wordt de content wel correct herkend.
-
-Maak een `.env`-bestand aan (niet meegecommit, zie `.env.example`) met het
-LAN-IP van de machine waar AuthentiPi op draait:
-
-```bash
-cp .env.example .env
-# bewerk .env: AUTHENTIPI_APP_BASE_URL=http://<jouw-lan-ip>:8080
-docker compose up -d proxy
-```
-
-### 2. CA-certificaat ophalen
+### 1. CA-certificaat ophalen
 
 mitmproxy genereert bij eerste start een eigen CA-certificaat in het
 `mitmproxy-ca` volume. Haal het bestand op:
@@ -195,7 +177,7 @@ mitmproxy genereert bij eerste start een eigen CA-certificaat in het
 docker compose cp proxy:/home/mitmproxy/.mitmproxy/mitmproxy-ca-cert.pem ./mitmproxy-ca-cert.pem
 ```
 
-### 3. Certificaat vertrouwen op het clientapparaat
+### 2. Certificaat vertrouwen op het clientapparaat
 
 - **iPhone:** stuur/AirDrop `mitmproxy-ca-cert.pem` naar het toestel, open
   het (installeert een geconfigureerd profiel), en zet 'm daarna **ook**
@@ -207,13 +189,13 @@ docker compose cp proxy:/home/mitmproxy/.mitmproxy/mitmproxy-ca-cert.pem ./mitmp
 - **Android:** Instellingen → Beveiliging → Meer beveiligingsinstellingen →
   Certificaten installeren → CA-certificaat.
 
-### 4. Proxy instellen op het clientapparaat
+### 3. Proxy instellen op het clientapparaat
 
 Zet in de Wi-Fi-instellingen van het apparaat een HTTP-proxy (handmatig) op
 het LAN-IP van AuthentiPi, poort **8081** (dezelfde plek waar je eerder de
 DNS-server instelde).
 
-### 5. Testen
+### 4. Testen
 
 De pagina moet je via **HTTP** bezoeken (niet als lokaal `file://`-bestand
 openen) — alleen dan gaat de pagina zelf ook door de proxy, wat nodig is om
@@ -280,9 +262,21 @@ proxy-addon (`proxy/authentipi_addon.py`) werkt.
 
 `marker.js` is getest tegen een eenvoudige statische testpagina, maar
 zware, JS-gedreven sites (veel ads/trackers, responsive `srcset`-
-afbeeldingen, infinite scroll) bleken in de praktijk drie extra dingen
+afbeeldingen, infinite scroll) bleken in de praktijk vier extra dingen
 nodig te hebben, inmiddels opgelost:
 
+- **Mixed content (dé hoofdoorzaak van "geen badge op geen enkele echte
+  site")**: `marker.js` werd eerst als absolute `http://<lan-ip>:8080/...`
+  URL geladen. Op een HTTPS-pagina (vrijwel elke echte site) blokkeren
+  browsers dat stil als "mixed content" — geen zichtbare foutmelding op de
+  pagina, alleen in de devtools-console. Opgelost door de proxy-addon zelf
+  als same-origin reverse-proxy te laten optreden: het script en alle
+  API-calls lopen nu via een relatief pad (`/__authentipi/...`), dat de
+  addon onderschept en intern doorstuurt naar de `app`-service — zo erven
+  ze automatisch het schema (http/https) en de host van de bezochte pagina
+  zelf, zonder dat AuthentiPi een eigen vertrouwd certificaat nodig heeft.
+  Dit maakte ook de LAN-IP/`.env`-configuratie uit eerdere versies van dit
+  document overbodig.
 - **`srcset`/`<picture>`**: de browser kan een andere afbeeldings-URL laden
   dan wat in het `src`-attribuut staat. `marker.js` gebruikt nu
   `img.currentSrc` (de URL die de browser écht laadde) in plaats van alleen
@@ -353,10 +347,101 @@ uit als je klaar bent met kalibreren — hij is bewust bedoeld als tijdelijk
 hulpmiddel, niet als permanente stand (elke afbeelding zonder manifest
 krijgt er dan een zichtbare badge bij, ook de overduidelijk echte).
 
+## TLS-uitzonderingen en foutlog
+
+Onder **Instellingen → TLS-uitzonderingen** beheer je groepen zoals Apple
+of Bankieren. De negen werkende hostnamen uit de App Store-proef worden
+eenmalig als Apple geïmporteerd. Daarna is de database leidend;
+`proxy/config.yaml` is alleen de initiële import en opstartfallback.
+
+Groepen kun je toevoegen, hernoemen, uitschakelen en verwijderen. Voeg een
+exacte hostnaam en poort toe, of verplaats een bestaande uitzondering door
+dezelfde host/poort met een andere groep op te slaan. Een HTTPS-URL zonder
+pad mag ook. Wildcards en URL-paden zijn niet toegestaan: het pad is vóór
+TLS-ontsleuteling niet zichtbaar. Subdomeinen worden niet automatisch uitgezonderd.
+
+De proxy haalt wijzigingen iedere drie seconden op, zonder herstart.
+Heropen de betreffende app voor nieuwe verbindingen. Uitgesloten content
+blijft versleuteld en wordt niet geïnspecteerd of gemarkeerd. Bij backenduitval
+blijven de laatst geladen regels actief; die worden ook voor herstarts bewaard.
+
+Het **TLS-foutlog** toont nieuwe mislukte handshakes met host, poort,
+clientadres, foutzijde, laatste melding en aantal. Klik na een test op
+**Log vernieuwen**, kies bij een fout een groep en klik op **Toevoegen aan
+uitzonderingen**. Toevoegen gebeurt nooit automatisch. Een TLS-fout is
+niet per definitie certificate pinning; een uitzondering lost niet elk
+verbindingsprobleem op. Oude Docker-logs worden niet geïmporteerd.
+De laatste 100 combinaties worden getoond, maximaal 500 worden bewaard.
+Bij backenduitval of een volle rapportagebuffer kunnen meldingen verloren
+gaan; proxyverkeer blijft doorgaan.
+
+Geïsoleerde tests zonder wijzigingen aan de bestaande database:
+
+```bash
+docker compose exec -T app python - < tests/test_tls_settings_unit.py
+```
+
 ## Domeinlijsten (`rules/`)
 
 Zie [`rules/README.md`](rules/README.md) voor het formaat en hoe je eigen
 lijsten toevoegt of abonneert op externe lijsten (net als PiHole-adlists).
+
+## Todo
+
+### Ideeën en gewenste richting
+
+- [ ] **Configureerbare classifiers en een instelbare volgorde.** Maak het
+  mogelijk classifiers toe te voegen, te selecteren en te configureren via
+  een gedeelde interface, zodat meerdere mensen classifiers kunnen ontwikkelen
+  die gespecialiseerd zijn in bepaalde taken. Laat geselecteerde classifiers
+  achter elkaar draaien in een instelbare volgorde. Werk daarbij uit hoe
+  resultaten worden doorgegeven en wanneer de volgende classifier draait
+  of de keten stopt.
+- [ ] **Dashboard verder uitwerken met statistieken.** Geef inzicht in
+  onderzochte content, detecties per classifier en contenttype, trends in de
+  tijd en verwerkingstijden. Houd C2PA-resultaten en statistische
+  AI-inschattingen duidelijk van elkaar te onderscheiden.
+- [ ] **Pi-hole-integratie zonder een tweede DNS-server.** Onderzoek en werk
+  een opzet uit waarin Pi-hole de DNS-server blijft en AuthentiPi zonder eigen
+  DNS-server kan draaien. De gewenste kernfunctie is content herkennen en
+  markeren; alleen loggen dat een site bezocht is, is niet het doel. Bepaal
+  welke onderdelen van de huidige DNS-laag daarmee kunnen vervallen of
+  optioneel worden en documenteer hoe de proxy naast Pi-hole werkt.
+- [ ] **Uitzonderingslijst voor URL's/domeinen.** Maak uitzonderingen
+  configureerbaar zodat onder meer bankapps kunnen blijven werken met de
+  proxy-opzet. Onderzoek een bypass voor TLS-inspectie bij certificate pinning
+  en test dit op echte clients. Werk uit welke uitzonderingen op hostnaam
+  moeten gelden voordat TLS wordt ontsleuteld en waar een volledig URL-pad
+  bruikbaar is; alleen content-markering uitschakelen verhelpt een
+  certificaatprobleem niet.
+
+### Technische opvolging
+
+Open punten op basis van de huidige projectstatus; onderstaande controles
+zijn nog uit te voeren, ook waar de bijbehorende functionaliteit al gebouwd is.
+
+- [ ] De recente wijzigingen aan de proxy en de opgesplitste
+  instellingenpagina's controleren met de integratietests en een handmatige
+  controle van het opslaan en terugladen van instellingen.
+- [ ] Content-marking op echte HTTPS-sites en een apart clientapparaat
+  opnieuw testen: same-origin script/API, `srcset`/`<picture>`, infinite
+  scroll en badges bij vertraagde classificatie.
+- [ ] Automatische regressietests toevoegen voor de proxy-injectie en het
+  gedrag van `marker.js`; de bestaande API-contracttests dekken de volledige
+  route van proxy naar zichtbare badge nog niet af.
+- [ ] Een reproduceerbare set echte en AI-gegenereerde afbeeldingen zonder
+  C2PA samenstellen om de classifier te evalueren; vals-positieven,
+  vals-negatieven en het effect van de drempel vastleggen voordat een ander
+  model of een andere standaarddrempel wordt gekozen.
+- [ ] Geheugengebruik en classificatietijd op een Raspberry Pi meten, ook
+  op pagina's met veel afbeeldingen; op basis daarvan bepalen of caching
+  en begrenzing van classificatiewerk nodig zijn.
+- [ ] Na de keuze voor de Pi-hole-integratie de installatiehandleiding voor
+  een Raspberry Pi bijwerken. Als de eigen DNS-laag optioneel behouden blijft,
+  ook de ontbrekende `dns/README.md` schrijven met poort 53 en
+  router/DHCP-instellingen voor die opzet.
+- [ ] De README bijwerken voor de opgesplitste instellingenpagina's en de
+  uiteindelijke bediening van categorieën, lijsten, badges en AI-herkenning.
 
 ## Licentie
 

@@ -6,6 +6,7 @@
   hx-swap="outerHTML"
   {% endif %}
 >
+  <div class="table-scroll" role="region" aria-label="Resultaten" tabindex="0">
   <table class="detections">
     <thead>
       <tr>
@@ -30,6 +31,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 
   {% if detections_offset > 0 or detections_has_more %}
   <div class="pagination">

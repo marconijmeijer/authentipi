@@ -15,12 +15,12 @@ from .db import init_db
 from .rules import ruleset
 from .routers import (
     api,
-    client_debug,
     dashboard,
     heuristic_marks,
     heuristic_settings,
     marker_settings,
     marks,
+    tls_settings,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +29,7 @@ logging.basicConfig(level=logging.INFO)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    tls_settings.seed_exceptions()
     ruleset.load()
     task = asyncio.create_task(log_watcher.run())
     try:
@@ -76,4 +77,5 @@ app.include_router(marks.router)
 app.include_router(marker_settings.router)
 app.include_router(heuristic_marks.router)
 app.include_router(heuristic_settings.router)
-app.include_router(client_debug.router)
+
+app.include_router(tls_settings.router)

@@ -1,26 +1,29 @@
 {% extends "base.html" %}
 {% block title %}AuthentiPi — Dashboard{% endblock %}
 {% block content %}
-  <section class="stat-row">
-    <div class="stat-card">
-      <div class="stat-value">{{ stats.total }}</div>
-      <div class="stat-label">Detecties (24u)</div>
-    </div>
-    {% for category, count in stats.by_category.items() %}
-    <div class="stat-card">
-      <div class="stat-value">{{ count }}</div>
-      <div class="stat-label">{{ category }}</div>
-    </div>
-    {% endfor %}
+  <div class="page-heading">
+    <div><p class="eyebrow">Jouw overzicht</p><h1>Dashboard</h1>
+    <p>Herkomst van content en activiteit op je netwerk, op één plek.</p></div>
+    <span class="period-label">Afgelopen {{ stats.window_hours }} uur</span>
+  </div>
+  <section class="stat-row" aria-label="DNS-statistieken over de afgelopen 24 uur">
+    <div class="stat-card stat-primary"><div class="stat-label">DNS-detecties</div><div class="stat-value">{{ stats.total }}</div><div class="stat-detail">Bezoeken aan bekende AI-domeinen</div></div>
+    <div class="stat-card"><div class="stat-label">Clients met detecties</div><div class="stat-value">{{ stats.by_client|length }}</div><div class="stat-detail">Unieke clientadressen</div></div>
+    <div class="stat-card"><div class="stat-label">Actieve categorieën</div><div class="stat-value">{{ stats.by_category|length }}</div><div class="stat-detail">Categorieën met DNS-detecties</div></div>
   </section>
+  {% if stats.by_category %}
+  <div class="category-summary" aria-label="Detecties per categorie">
+    {% for category, count in stats.by_category.items() %}<span class="badge">{{ category }} <strong>{{ count }}</strong></span>{% endfor %}
+  </div>
+  {% endif %}
 
-  <section>
-    <h2>Recente detecties</h2>
+  <section class="content-card">
+    <div class="section-heading"><div><p class="eyebrow">Netwerkactiviteit</p><h2>Recente DNS-detecties</h2></div><span class="badge">Domeinherkenning</span></div>
     {% include "_detections_table.html" %}
   </section>
 
-  <section>
-    <h2>Content Credentials (C2PA)</h2>
+  <section class="content-card">
+    <div class="section-heading"><div><p class="eyebrow">Herkomst van afbeeldingen</p><h2>Content Credentials</h2></div><span class="badge badge-trusted">C2PA</span></div>
     <p class="hint">
       Afbeeldingen met C2PA-metadata die via de <code>proxy</code>-service
       zijn gezien. Vereist dat clientapparaten verkeer via de proxy sturen
@@ -29,8 +32,8 @@
     {% include "_marks_table.html" %}
   </section>
 
-  <section>
-    <h2>Experimentele AI-herkenning (Fase 3)</h2>
+  <section class="content-card">
+    <div class="section-heading"><div><p class="eyebrow">Lokale analyse</p><h2>AI-herkenning</h2></div><span class="badge badge-warning">Experimenteel</span></div>
     <p class="hint">
       <strong>Geen geverifieerde claim</strong> — een statistische inschatting
       van een lokaal ML-model voor afbeeldingen zónder C2PA-manifest. Heeft
