@@ -9,3 +9,4 @@ mitmproxy-ca-cert.pem
 .env
 .DS_Store
 logs/
+.claude/
