@@ -31,6 +31,10 @@ logger = logging.getLogger("authentipi.proxy")
 # the docker network) -- normally the internal service name, not localhost.
 INTERNAL_APP_URL = os.environ.get("AUTHENTIPI_INTERNAL_APP_URL", "http://app:8080")
 
+# Fase 3, experimental: the local AI-image classifier service. Optional --
+# if unset or unreachable, this feature is simply skipped.
+CLASSIFIER_URL = os.environ.get("AUTHENTIPI_CLASSIFIER_URL", "http://classifier:8082")
+
 # Reachable by CLIENT BROWSERS on the LAN (used in the injected <script src>
 # tag, and by marker.js itself for its own fetch() calls back to the API).
 # Must be overridden to the host's LAN IP for real multi-device use.
@@ -125,34 +129,43 @@ class AuthentiPiAddon:
         return address[0] if address else "unknown"
 
     def _inspect_image(self, flow: http.HTTPFlow, mime_type: str) -> None:
+        if self._inspect_c2pa(flow, mime_type):
+            return  # a verified/self-signed manifest is authoritative
+        self._inspect_heuristic(flow, mime_type)
+
+    def _inspect_c2pa(self, flow: http.HTTPFlow, mime_type: str) -> bool:
+        """Returns True if a (structurally valid) C2PA manifest was found
+        and reported -- regardless of trust status."""
         try:
             reader = c2pa.Reader.try_create(
                 mime_type, io.BytesIO(flow.response.content), context=self._context
             )
         except Exception:
             logger.exception("c2pa read mislukt voor %s", flow.request.pretty_url)
-            return
+            return False
 
         if reader is None:
-            return
+            return False
 
         try:
             manifest_json = json.loads(reader.json())
         except Exception:
             logger.exception("kon C2PA manifest niet parsen voor %s", flow.request.pretty_url)
-            return
+            return False
         finally:
             reader.close()
 
         # "Invalid" means the manifest itself failed structural/tamper
         # checks (e.g. the file was modified after signing, or a required
-        # field is malformed) -- don't present that as Content Credentials.
+        # field is malformed) -- don't present that as Content Credentials,
+        # but also don't fall through to the heuristic check: a tampered
+        # manifest is a stronger (if different) signal than "no signal".
         validation_state = manifest_json.get("validation_state")
         if validation_state == "Invalid":
             logger.warning(
                 "C2PA manifest ongeldig voor %s, niet gerapporteerd", flow.request.pretty_url
             )
-            return
+            return True
 
         active = manifest_json.get("active_manifest")
         manifest = manifest_json.get("manifests", {}).get(active, {}) if active else {}
@@ -181,6 +194,55 @@ class AuthentiPiAddon:
             )
         except requests.RequestException:
             logger.warning("kon C2PA-detectie niet rapporteren aan backend")
+        return True
+
+    def _inspect_heuristic(self, flow: http.HTTPFlow, mime_type: str) -> None:
+        """Fase 3, experimental: no C2PA manifest was found, so ask the
+        local classifier service for a statistical guess instead. Never
+        raises -- the classifier is optional and this must never break the
+        proxied response."""
+        try:
+            settings_resp = requests.get(f"{INTERNAL_APP_URL}/api/heuristic-settings", timeout=2)
+            settings_resp.raise_for_status()
+            settings = settings_resp.json()
+        except requests.RequestException:
+            return
+        if not settings.get("enabled"):
+            return
+
+        try:
+            classify_resp = requests.post(
+                f"{CLASSIFIER_URL}/classify",
+                data=flow.response.content,
+                headers={"Content-Type": "application/octet-stream"},
+                timeout=10,
+            )
+            classify_resp.raise_for_status()
+            classify_result = classify_resp.json()
+            predictions = classify_result.get("predictions", [])
+        except requests.RequestException:
+            logger.debug("classifier-service niet bereikbaar voor %s", flow.request.pretty_url)
+            return
+
+        artificial = next((p for p in predictions if p.get("label") == "artificial"), None)
+        if artificial is None or artificial.get("score", 0) < settings.get("threshold", 0.6):
+            return
+
+        try:
+            requests.post(
+                f"{INTERNAL_APP_URL}/api/heuristic-marks",
+                json={
+                    "url": flow.request.pretty_url,
+                    "client_ip": self._client_ip(flow),
+                    "mime_type": mime_type,
+                    "label": "artificial",
+                    "score": artificial["score"],
+                    "model_name": classify_result.get("model", "unknown"),
+                },
+                timeout=3,
+            )
+        except requests.RequestException:
+            logger.warning("kon heuristische detectie niet rapporteren aan backend")
 
     def _inject_marker(self, flow: http.HTTPFlow) -> None:
         flow.response.headers.pop("Content-Security-Policy", None)

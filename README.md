@@ -12,7 +12,8 @@ via de [C2PA](https://c2pa.org/) content-provenance standaard).
 
 ## Status
 
-Vroege proof-of-concept. Fase 1 en Fase 2 hieronder zijn gebouwd en getest.
+Vroege proof-of-concept. Fase 1, Fase 2 en Fase 3 hieronder zijn gebouwd en
+getest.
 
 ## Architectuur (gefaseerd)
 
@@ -50,10 +51,25 @@ Vroege proof-of-concept. Fase 1 en Fase 2 hieronder zijn gebouwd en getest.
   100%-dekking — dit is "als het er is, tonen we het betrouwbaar", niet
   "we herkennen elke AI-afbeelding".
 
-**Fase 3 — experimenteel**
-- Lokale detectie van AI-geschreven tekst in HTTP-responses. Nadrukkelijk
-  als "experimenteel" gemarkeerd: tekstdetectie is technisch onbetrouwbaar
-  (veel false positives/negatives).
+**Fase 3 — experimentele lokale AI-beeldherkenning (opt-in, zwaar, onbetrouwbaar)**
+- Voor content zonder C2PA-manifest (de meeste content op het web vandaag,
+  inclusief veel echt AI-gegenereerd materiaal — zie hieronder) is er geen
+  cryptografisch signaal om op te varen. `classifier`-service draait een
+  lokaal ML-model (`umm-maybe/AI-image-detector` via `transformers`/`torch`,
+  standaard instelbaar) dat een **statistische inschatting** maakt of een
+  afbeelding AI-gegenereerd oogt.
+- **Dit is nadrukkelijk geen verificatie.** Concreet gemeten op een
+  afbeelding waarvan de eigenaar zeker wist dat 'ie AI-gegenereerd was:
+  het model schatte "human" in met ~65-80% zekerheid — een valse
+  negatieve op precies het soort geval waar dit voor bedoeld is. Op
+  bekende echte foto's zat het model er wel goed naast (85-95% "human").
+  Behandel de uitkomst als een hint, niet als een feit.
+- Draait bewust niet standaard mee (torch/transformers zijn zwaar, ~1-2GB
+  image, tragere cold start — merkbaar op een Raspberry Pi). Opt-in via
+  een Docker Compose profiel én een losse toggle in de instellingen (zie
+  hieronder), en visueel duidelijk anders gestyled dan de C2PA-badge
+  (andere positie, eigen kleuren, toont het percentage) zodat een
+  onzekere gok nooit hetzelfde oogt als een geverifieerde claim.
 
 ## Lokaal draaien (testen, geen echte netwerk-DNS)
 
@@ -249,6 +265,47 @@ proxy-addon (`proxy/authentipi_addon.py`) werkt.
 - Sommige sites met certificate pinning (bankieren-apps, sommige
   besloten apps) werken niet meer zolang de proxy actief is — dat is
   inherent aan MITM-interceptie, niet oplosbaar vanuit AuthentiPi.
+
+## Experimentele AI-herkenning testen (Fase 3)
+
+Werkt op dezelfde proxy-installatie als hierboven (CA-cert + proxy-instelling
+moeten al staan). Extra stappen:
+
+### 1. Classifier-service starten
+
+Draait niet standaard mee met `docker compose up` — het is een zwaar,
+expliciet opt-in profiel:
+
+```bash
+docker compose --profile experimental up -d classifier
+```
+
+Eerste keer bouwen duurt langer (torch + het model worden ingebakken in de
+image, ~1-2GB). Check daarna `docker compose logs classifier` — moet
+"Model geladen." tonen.
+
+### 2. Aanzetten in de instellingen
+
+Ga naar de instellingenpagina → "Experimentele AI-herkenning (Fase 3)" →
+vink "Experimentele herkenning aanzetten" aan. De proxy roept de
+classifier alleen aan voor afbeeldingen zónder C2PA-manifest, en rapporteert
+alleen een detectie als de "artificial"-score de ingestelde drempel haalt
+(standaard 0,6 — hoger = minder vals-positief, maar ook minder gevoelig).
+
+### 3. Testen
+
+Bezoek een pagina met een afbeelding waarvan je zeker weet dat 'ie
+AI-gegenereerd is (en die geen C2PA-manifest heeft — anders vangt Fase 2
+'m al af). Je zou onderin de afbeelding een oranje/amber badge moeten zien
+met het percentage, duidelijk anders gestyled dan de gele C2PA-badge.
+
+**Reken er niet op dat dit werkt.** Bij het testen tijdens de ontwikkeling
+schatte het model een afbeelding waarvan de eigenaar zeker wist dat 'ie
+AI-gegenereerd was, in als ~65-80% "human" — dus fout. Verlaag de drempel
+in de instellingen als je specifiek dát soort grensgevallen wilt vangen,
+maar besef dat dat ook meer vals-positieven op echte foto's oplevert. Dit
+is precies waarom deze badge bewust anders oogt dan de C2PA-badge: het is
+een gok, geen bewijs.
 
 ## Domeinlijsten (`rules/`)
 

@@ -28,4 +28,16 @@
     </p>
     {% include "_marks_table.html" %}
   </section>
+
+  <section>
+    <h2>Experimentele AI-herkenning (Fase 3)</h2>
+    <p class="hint">
+      <strong>Geen geverifieerde claim</strong> — een statistische inschatting
+      van een lokaal ML-model voor afbeeldingen zónder C2PA-manifest. Heeft
+      aantoonbare foutmarges (zie README). Alleen actief als de
+      <code>classifier</code>-service draait én aangezet is op de
+      instellingenpagina.
+    </p>
+    {% include "_heuristic_marks_table.html" %}
+  </section>
 {% endblock %}

@@ -56,6 +56,19 @@ services:
     depends_on:
       - app
 
+  classifier:
+    build: ./classifier
+    container_name: authentipi-classifier
+    restart: unless-stopped
+    # Fase 3, experimenteel en zwaar (torch + transformers, ~1-1.5GB image,
+    # trage cold start). Draait niet standaard mee met `docker compose up`;
+    # start 'm expliciet met `docker compose --profile experimental up -d`.
+    # Zet ook de toggle op de instellingenpagina aan, anders roept de proxy
+    # 'm nooit aan.
+    profiles: ["experimental"]
+    ports:
+      - "8082:8082"
+
 volumes:
   dnsmasq-logs:
   app-data:

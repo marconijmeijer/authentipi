@@ -1,0 +1,54 @@
+<div
+  id="heuristic-marks"
+  {% if heuristic_offset == 0 %}
+  hx-get="/partials/heuristic-marks?offset=0&limit={{ heuristic_limit }}"
+  hx-trigger="every 5s"
+  hx-swap="outerHTML"
+  {% endif %}
+>
+  <table class="detections">
+    <thead>
+      <tr>
+        <th>Tijd (UTC)</th>
+        <th>Client</th>
+        <th>URL</th>
+        <th>Score</th>
+        <th>Model</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in heuristic_marks %}
+      <tr>
+        <td>{{ m.timestamp.strftime("%H:%M:%S") }}</td>
+        <td>{{ m.client_ip }}</td>
+        <td class="truncate" title="{{ m.url }}">{{ m.url }}</td>
+        <td>{{ (m.score * 100) | round | int }}%</td>
+        <td>{{ m.model_name }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="empty">Nog geen experimentele detecties. Vereist de <code>classifier</code>-service (opt-in, zie README) en de toggle hieronder op de instellingenpagina.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if heuristic_offset > 0 or heuristic_has_more %}
+  <div class="pagination">
+    {% if heuristic_offset > 0 %}
+    <button
+      class="page-btn page-btn-prev"
+      hx-get="/partials/heuristic-marks?offset={{ [heuristic_offset - heuristic_limit, 0] | max }}&limit={{ heuristic_limit }}"
+      hx-target="#heuristic-marks"
+      hx-swap="outerHTML"
+    >&laquo; Nieuwer</button>
+    {% endif %}
+    {% if heuristic_has_more %}
+    <button
+      class="page-btn page-btn-next"
+      hx-get="/partials/heuristic-marks?offset={{ heuristic_offset + heuristic_limit }}&limit={{ heuristic_limit }}"
+      hx-target="#heuristic-marks"
+      hx-swap="outerHTML"
+    >Oudere resultaten &raquo;</button>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

@@ -88,3 +88,48 @@ def check_marks(urls: list[str]) -> list[dict]:
     )
     resp.raise_for_status()
     return resp.json()
+
+
+def report_heuristic_mark(
+    url: str,
+    client_ip: str = "203.0.113.5",
+    mime_type: str = "image/jpeg",
+    label: str = "artificial",
+    score: float = 0.75,
+    model_name: str = "test-model",
+) -> None:
+    resp = requests.post(
+        f"{API_BASE}/api/heuristic-marks",
+        json={
+            "url": url,
+            "client_ip": client_ip,
+            "mime_type": mime_type,
+            "label": label,
+            "score": score,
+            "model_name": model_name,
+        },
+        timeout=5,
+    )
+    resp.raise_for_status()
+
+
+def check_heuristic_marks(urls: list[str]) -> list[dict]:
+    resp = requests.get(
+        f"{API_BASE}/api/heuristic-marks/check", params={"urls": ",".join(urls)}, timeout=5
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def get_heuristic_settings() -> dict:
+    resp = requests.get(f"{API_BASE}/api/heuristic-settings", timeout=5)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def set_heuristic_settings(**overrides) -> dict:
+    current = get_heuristic_settings()
+    current.update(overrides)
+    resp = requests.post(f"{API_BASE}/api/heuristic-settings", json=current, timeout=5)
+    resp.raise_for_status()
+    return resp.json()

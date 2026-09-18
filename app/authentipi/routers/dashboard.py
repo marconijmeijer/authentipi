@@ -9,9 +9,17 @@ from sqlalchemy import select
 
 from .. import config
 from ..db import SessionLocal
-from ..models import CategoryState, Detection, ImageMark, MarkerSettings
+from ..models import (
+    CategoryState,
+    Detection,
+    HeuristicMark,
+    HeuristicMarkerSettings,
+    ImageMark,
+    MarkerSettings,
+)
 from ..rules import ruleset
 from .api import stats
+from .heuristic_settings import _as_dict as heuristic_settings_dict
 from .marker_settings import _as_dict as marker_settings_dict
 
 router = APIRouter()
@@ -37,6 +45,9 @@ def dashboard(request: Request):
             session, Detection, Detection.timestamp, 0, PAGE_SIZE
         )
         marks, marks_has_more = _paginate(session, ImageMark, ImageMark.timestamp, 0, PAGE_SIZE)
+        heuristic_marks, heuristic_has_more = _paginate(
+            session, HeuristicMark, HeuristicMark.timestamp, 0, PAGE_SIZE
+        )
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -49,6 +60,10 @@ def dashboard(request: Request):
             "marks_offset": 0,
             "marks_limit": PAGE_SIZE,
             "marks_has_more": marks_has_more,
+            "heuristic_marks": heuristic_marks,
+            "heuristic_offset": 0,
+            "heuristic_limit": PAGE_SIZE,
+            "heuristic_has_more": heuristic_has_more,
             "stats": stats(),
         },
     )
@@ -88,6 +103,25 @@ def marks_partial(request: Request, offset: int = 0, limit: int = PAGE_SIZE):
     )
 
 
+@router.get("/partials/heuristic-marks")
+def heuristic_marks_partial(request: Request, offset: int = 0, limit: int = PAGE_SIZE):
+    offset = max(0, offset)
+    with SessionLocal() as session:
+        heuristic_marks, has_more = _paginate(
+            session, HeuristicMark, HeuristicMark.timestamp, offset, limit
+        )
+    return templates.TemplateResponse(
+        request,
+        "_heuristic_marks_table.html",
+        {
+            "heuristic_marks": heuristic_marks,
+            "heuristic_offset": offset,
+            "heuristic_limit": limit,
+            "heuristic_has_more": has_more,
+        },
+    )
+
+
 @router.get("/settings")
 def settings(request: Request):
     with SessionLocal() as session:
@@ -95,13 +129,19 @@ def settings(request: Request):
             s.category: s.enabled for s in session.execute(select(CategoryState)).scalars()
         }
         marker = marker_settings_dict(session.get(MarkerSettings, 1))
+        heuristic = heuristic_settings_dict(session.get(HeuristicMarkerSettings, 1))
     categories = [
         {"category": c, "enabled": states.get(c, True)} for c in config.KNOWN_CATEGORIES
     ]
     return templates.TemplateResponse(
         request,
         "settings.html",
-        {"categories": categories, "rules": ruleset.all_entries(), "marker": marker},
+        {
+            "categories": categories,
+            "rules": ruleset.all_entries(),
+            "marker": marker,
+            "heuristic": heuristic,
+        },
     )
 
 
@@ -136,5 +176,30 @@ def update_marker_settings(
         row.text = text
         row.text_color = text_color
         row.bg_color = bg_color
+        session.commit()
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@router.post("/settings/heuristic")
+def update_heuristic_settings(
+    request: Request,
+    icon: str = Form(""),
+    text: str = Form("Mogelijk AI (experimenteel)"),
+    text_color: str = Form("#3a2a00"),
+    bg_color: str = Form("#ffb84d"),
+    threshold: float = Form(0.6),
+    enabled: str = Form(""),
+):
+    with SessionLocal() as session:
+        row = session.get(HeuristicMarkerSettings, 1)
+        if row is None:
+            row = HeuristicMarkerSettings(id=1)
+            session.add(row)
+        row.icon = icon
+        row.text = text
+        row.text_color = text_color
+        row.bg_color = bg_color
+        row.threshold = max(0.0, min(threshold, 1.0))
+        row.enabled = enabled == "on"
         session.commit()
     return RedirectResponse(url="/settings", status_code=303)

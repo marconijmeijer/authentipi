@@ -12,7 +12,14 @@ from fastapi.staticfiles import StaticFiles
 from . import log_watcher
 from .db import init_db
 from .rules import ruleset
-from .routers import api, dashboard, marker_settings, marks
+from .routers import (
+    api,
+    dashboard,
+    heuristic_marks,
+    heuristic_settings,
+    marker_settings,
+    marks,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -47,3 +54,5 @@ app.include_router(api.router)
 app.include_router(dashboard.router)
 app.include_router(marks.router)
 app.include_router(marker_settings.router)
+app.include_router(heuristic_marks.router)
+app.include_router(heuristic_settings.router)
