@@ -1,0 +1,35 @@
+services:
+  dns:
+    build: ./dns
+    container_name: authentipi-dns
+    restart: unless-stopped
+    ports:
+      # Alleen nodig als je AuthentiPi als netwerk-brede DNS-resolver wilt
+      # gebruiken. Voor lokaal testen (dashboard bekijken) is dit niet vereist.
+      # Kan conflicteren met een lokale resolver op je host; pas zo nodig aan
+      # naar bv. "5353:53/udp".
+      - "53:53/udp"
+      - "53:53/tcp"
+    volumes:
+      - dnsmasq-logs:/var/log/dnsmasq
+
+  app:
+    build: ./app
+    container_name: authentipi-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      AUTHENTIPI_RULES_DIR: /rules
+      AUTHENTIPI_DNS_LOG: /var/log/dnsmasq/dnsmasq.log
+      AUTHENTIPI_DB_PATH: /data/authentipi.db
+    volumes:
+      - dnsmasq-logs:/var/log/dnsmasq:ro
+      - ./rules:/rules:ro
+      - app-data:/data
+    depends_on:
+      - dns
+
+volumes:
+  dnsmasq-logs:
+  app-data:

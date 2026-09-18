@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}AuthentiPi — Dashboard{% endblock %}
+{% block content %}
+  <section class="stat-row">
+    <div class="stat-card">
+      <div class="stat-value">{{ stats.total }}</div>
+      <div class="stat-label">Detecties (24u)</div>
+    </div>
+    {% for category, count in stats.by_category.items() %}
+    <div class="stat-card">
+      <div class="stat-value">{{ count }}</div>
+      <div class="stat-label">{{ category }}</div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section>
+    <h2>Recente detecties</h2>
+    <div id="detections" hx-get="/partials/detections" hx-trigger="every 5s" hx-swap="innerHTML">
+      {% include "_detections_table.html" %}
+    </div>
+  </section>
+{% endblock %}

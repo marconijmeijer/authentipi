@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}AuthentiPi — Instellingen{% endblock %}
+{% block content %}
+  <section>
+    <h2>Categorieën</h2>
+    <p>Zet categorieën uit om detecties van dat type niet meer te loggen.</p>
+    <form method="post" action="/settings/categories">
+      {% for c in categories %}
+      <label class="checkbox-row">
+        <input type="checkbox" name="enabled_categories" value="{{ c.category }}" {% if c.enabled %}checked{% endif %} />
+        {{ c.category }}
+      </label>
+      {% endfor %}
+      <button type="submit">Opslaan</button>
+    </form>
+  </section>
+
+  <section>
+    <h2>Geladen domeinlijst ({{ rules|length }} domeinen)</h2>
+    <p>Beheerd via bestanden in <code>rules/</code>. Zie <code>rules/README.md</code> in de repo voor het formaat.</p>
+    <table class="detections">
+      <thead>
+        <tr><th>Domein</th><th>Dienst</th><th>Categorie</th><th>Bron</th></tr>
+      </thead>
+      <tbody>
+        {% for r in rules %}
+        <tr>
+          <td>{{ r.domain }}</td>
+          <td>{{ r.service }}</td>
+          <td><span class="badge badge-{{ r.category }}">{{ r.category }}</span></td>
+          <td>{{ r.source_list }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

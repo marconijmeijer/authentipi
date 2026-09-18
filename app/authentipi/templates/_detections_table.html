@@ -1,0 +1,24 @@
+<table class="detections">
+  <thead>
+    <tr>
+      <th>Tijd (UTC)</th>
+      <th>Client</th>
+      <th>Domein</th>
+      <th>Dienst</th>
+      <th>Categorie</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for d in detections %}
+    <tr>
+      <td>{{ d.timestamp.strftime("%H:%M:%S") }}</td>
+      <td>{{ d.client_ip }}</td>
+      <td>{{ d.domain }}</td>
+      <td>{{ d.service }}</td>
+      <td><span class="badge badge-{{ d.category }}">{{ d.category }}</span></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="empty">Nog geen detecties. Zet je router/DHCP DNS naar dit adres en genereer wat AI-verkeer.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
