@@ -1,0 +1,22 @@
+<table class="detections">
+  <thead>
+    <tr>
+      <th>Tijd (UTC)</th>
+      <th>Client</th>
+      <th>URL</th>
+      <th>Bron (claim generator)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in marks %}
+    <tr>
+      <td>{{ m.timestamp.strftime("%H:%M:%S") }}</td>
+      <td>{{ m.client_ip }}</td>
+      <td class="truncate" title="{{ m.url }}">{{ m.url }}</td>
+      <td>{{ m.claim_generator or "onbekend" }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="empty">Nog geen C2PA-gemarkeerde content gezien. Vereist dat de proxy-service actief is en een client via de proxy verkeer stuurt.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

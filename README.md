@@ -12,11 +12,11 @@ via de [C2PA](https://c2pa.org/) content-provenance standaard).
 
 ## Status
 
-Vroege proof-of-concept. Fase 1 hieronder is de huidige scope.
+Vroege proof-of-concept. Fase 1 en Fase 2 hieronder zijn gebouwd en getest.
 
 ## Architectuur (gefaseerd)
 
-**Fase 1 — nu (DNS + domeinlijsten, geen decryptie nodig)**
+**Fase 1 — DNS + domeinlijsten (geen decryptie nodig)**
 - `dnsmasq` container die als netwerk-DNS-resolver draait en queries logt.
 - Een Python-service (`app/`) die de dnsmasq-log tailt, domeinen matcht tegen
   een lijst van bekende AI-diensten (`rules/`), en treffers opslaat in SQLite.
@@ -26,12 +26,23 @@ Vroege proof-of-concept. Fase 1 hieronder is de huidige scope.
   - instellingenpagina om categorieën aan/uit te zetten en geladen lijsten
     te bekijken
 
-**Fase 2 — later (optioneel, geavanceerder)**
-- Optionele MITM TLS-proxy modus (bijv. gebaseerd op mitmproxy) die
-  afbeeldingen/video daadwerkelijk kan controleren op C2PA Content
-  Credentials-metadata voor betrouwbaardere "dit is bevestigd
-  AI-gegenereerd/bewerkt"-markeringen. Vereist het installeren van een eigen
-  CA-certificaat op clients — expliciet opt-in.
+**Fase 2 — content-marking via MITM-proxy (opt-in, expliciet meer invasief)**
+- `proxy`-service (mitmproxy) die als HTTP(S)-proxy draait: onderschept
+  afbeeldingen en controleert ze op [C2PA](https://c2pa.org/) Content
+  Credentials-manifesten (via `c2pa-python`), en injecteert een klein
+  script (`marker.js`) in HTML-pagina's.
+- `marker.js` draait in de browser van de client, vraagt aan de backend
+  welke afbeeldingen op de pagina een manifest hebben, en overlayt daar een
+  badge op — de gebruiker ziet dus direct op de afbeelding zelf een
+  markering, in plaats van alleen een dashboard-regel.
+- Vereist het installeren van mitmproxy's CA-certificaat op clientapparaten
+  (net als bedrijfs-firewalls doen) en het instellen van een HTTP-proxy op
+  die apparaten. Zie "Content-marking testen" hieronder.
+- **Belangrijke kanttekening over dekking:** C2PA is een nog groeiende
+  standaard. Niet elke AI-afbeelding bevat een manifest (bijv. veel lokaal
+  gedraaide Stable Diffusion-varianten doen dat niet), dus verwacht geen
+  100%-dekking — dit is "als het er is, tonen we het betrouwbaar", niet
+  "we herkennen elke AI-afbeelding".
 
 **Fase 3 — experimenteel**
 - Lokale detectie van AI-geschreven tekst in HTTP-responses. Nadrukkelijk
@@ -127,6 +138,73 @@ interne VM omgezet naar één gateway-adres (`192.168.65.1`), ongeacht welk
 apparaat de query stuurde. Je ziet dus wél of iets herkend wordt, maar niet
 betrouwbaar *van welk apparaat*. Op een Raspberry Pi (native Linux, geen
 Docker Desktop-VM) werkt client-IP-herkenning wel correct.
+
+## Content-marking testen (C2PA via de proxy)
+
+De `proxy`-service (mitmproxy) onderschept HTTP(S)-verkeer van een client om
+afbeeldingen te controleren op C2PA-manifesten en ze direct op de pagina te
+markeren. Dit is ingrijpender dan de DNS-laag: al het verkeer van een client
+die de proxy gebruikt, wordt ontsleuteld en geïnspecteerd.
+
+### 1. CA-certificaat ophalen
+
+mitmproxy genereert bij eerste start een eigen CA-certificaat in het
+`mitmproxy-ca` volume. Haal het bestand op:
+
+```bash
+docker compose cp proxy:/home/mitmproxy/.mitmproxy/mitmproxy-ca-cert.pem ./mitmproxy-ca-cert.pem
+```
+
+### 2. Certificaat vertrouwen op het clientapparaat
+
+- **iPhone:** stuur/AirDrop `mitmproxy-ca-cert.pem` naar het toestel, open
+  het (installeert een geconfigureerd profiel), en zet 'm daarna **ook**
+  aan onder Instellingen → Algemeen → Info → Certificaatvertrouwensinstel-
+  lingen (dit is een aparte stap — anders wordt het certificaat wel
+  geïnstalleerd maar niet vertrouwd voor TLS).
+- **macOS:** dubbelklik het `.pem`-bestand om het aan je sleutelhanger toe
+  te voegen, open het in Sleutelhangertoegang en zet "Altijd vertrouwen" aan.
+- **Android:** Instellingen → Beveiliging → Meer beveiligingsinstellingen →
+  Certificaten installeren → CA-certificaat.
+
+### 3. Proxy instellen op het clientapparaat
+
+Zet in de Wi-Fi-instellingen van het apparaat een HTTP-proxy (handmatig) op
+het LAN-IP van AuthentiPi, poort **8081** (dezelfde plek waar je eerder de
+DNS-server instelde).
+
+### 4. Testen
+
+Bezoek een pagina met een afbeelding waarvan je weet dat 'ie C2PA-metadata
+bevat (bijv. een recent met ChatGPT/DALL·E, Adobe Firefly of Google
+Gemini/Imagen gegenereerde afbeelding, gedownload en ergens gehost, of
+rechtstreeks een dienst die dit soort afbeeldingen toont). Je zou een klein
+"✓ Content Credentials"-badge in de hoek van de afbeelding moeten zien, en
+een nieuwe rij op het dashboard onder "Content Credentials (C2PA)".
+
+**Let op:** de meeste bestaande afbeeldingen op het web hebben géén
+C2PA-metadata — dit is nog een groeiende standaard. Test dus gericht met een
+afbeelding waarvan je de herkomst kent, niet met een willekeurige site.
+
+### Backend-contract los testen
+
+`tests/test_content_marking.py` test de `/api/marks`-contractlaag (rapporteren
++ opvragen) rechtstreeks via de API, zonder dat de proxy of een echte
+afbeelding nodig is — handig om snel te verifiëren dat backend en
+`marker.js` het eens blijven over het formaat, ook als je aan de
+proxy-addon (`proxy/authentipi_addon.py`) werkt.
+
+### Beveiligingsafwegingen
+
+- Er wordt volledig TLS-verkeer ontsleuteld van elk apparaat dat de proxy
+  gebruikt — installeer het CA-certificaat dus alleen op apparaten die jij
+  beheert en vertrouwt.
+- De addon verwijdert `Content-Security-Policy`-headers van HTML-pagina's om
+  het marker-script te kunnen injecteren. Dat verzwakt de beveiliging van
+  bezochte sites voor het betreffende apparaat zolang de proxy actief is.
+- Sommige sites met certificate pinning (bankieren-apps, sommige
+  besloten apps) werken niet meer zolang de proxy actief is — dat is
+  inherent aan MITM-interceptie, niet oplosbaar vanuit AuthentiPi.
 
 ## Domeinlijsten (`rules/`)
 

@@ -20,4 +20,16 @@
       {% include "_detections_table.html" %}
     </div>
   </section>
+
+  <section>
+    <h2>Content Credentials (C2PA)</h2>
+    <p class="hint">
+      Afbeeldingen met C2PA-metadata die via de <code>proxy</code>-service
+      zijn gezien. Vereist dat clientapparaten verkeer via de proxy sturen
+      en het proxy-CA-certificaat vertrouwen — zie README.
+    </p>
+    <div id="marks" hx-get="/partials/marks" hx-trigger="every 5s" hx-swap="innerHTML">
+      {% include "_marks_table.html" %}
+    </div>
+  </section>
 {% endblock %}

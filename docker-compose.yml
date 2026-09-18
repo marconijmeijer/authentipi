@@ -30,6 +30,32 @@ services:
     depends_on:
       - dns
 
+  proxy:
+    build: ./proxy
+    container_name: authentipi-proxy
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      # Intern: hoe de proxy-container zelf de 'app'-service bereikt om
+      # detecties te rapporteren (via het docker-netwerk, altijd correct).
+      AUTHENTIPI_INTERNAL_APP_URL: http://app:8080
+      # Publiek: het adres waarop CLIENT-apparaten de 'app'-service kunnen
+      # bereiken over het netwerk (dus je LAN-IP, niet 'localhost' -- tenzij
+      # je alleen vanaf deze machine zelf test). Gebruikt in de <script>-tag
+      # die in pagina's wordt geïnjecteerd. Zie "Content-marking testen" in
+      # README.md.
+      AUTHENTIPI_APP_BASE_URL: http://localhost:8080
+    volumes:
+      # mitmproxy genereert hier bij eerste start zijn CA-certificaat
+      # (mitmproxy-ca-cert.pem), dat je op clientapparaten moet vertrouwen.
+      # Let op: de image draait de mitmproxy-tools als user 'mitmproxy' met
+      # HOME=/home/mitmproxy (niet /root).
+      - mitmproxy-ca:/home/mitmproxy/.mitmproxy
+    depends_on:
+      - app
+
 volumes:
   dnsmasq-logs:
   app-data:
+  mitmproxy-ca:

@@ -73,6 +73,15 @@ table.detections th, table.detections td {
 
 table.detections .empty { color: var(--muted); text-align: center; padding: 1.5rem; }
 
+table.detections .truncate {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+p.hint { color: var(--muted); font-size: 0.85rem; }
+
 .badge {
   display: inline-block;
   padding: 0.1rem 0.5rem;

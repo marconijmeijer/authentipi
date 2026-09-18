@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from .. import config
 from ..db import SessionLocal
-from ..models import CategoryState, Detection
+from ..models import CategoryState, Detection, ImageMark
 from ..rules import ruleset
 from .api import stats
 
@@ -23,10 +23,13 @@ def dashboard(request: Request):
         detections = session.execute(
             select(Detection).order_by(Detection.timestamp.desc()).limit(50)
         ).scalars().all()
+        marks = session.execute(
+            select(ImageMark).order_by(ImageMark.timestamp.desc()).limit(20)
+        ).scalars().all()
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        {"detections": detections, "stats": stats()},
+        {"detections": detections, "marks": marks, "stats": stats()},
     )
 
 
@@ -39,6 +42,15 @@ def detections_partial(request: Request):
     return templates.TemplateResponse(
         request, "_detections_table.html", {"detections": detections}
     )
+
+
+@router.get("/partials/marks")
+def marks_partial(request: Request):
+    with SessionLocal() as session:
+        marks = session.execute(
+            select(ImageMark).order_by(ImageMark.timestamp.desc()).limit(20)
+        ).scalars().all()
+    return templates.TemplateResponse(request, "_marks_table.html", {"marks": marks})
 
 
 @router.get("/settings")
