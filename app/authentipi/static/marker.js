@@ -18,6 +18,12 @@
   var badgedElements = new WeakSet();
 
   function absoluteUrl(img) {
+    // currentSrc is the URL the browser actually picked/loaded -- for a
+    // plain <img src="...">, that's the same as src; for <img srcset="...">
+    // or an <img> inside <picture><source srcset="...">, it can differ from
+    // the src attribute. The proxy only ever sees what really went over the
+    // network, so checking src alone can miss a real match entirely.
+    if (img.currentSrc) return img.currentSrc;
     try {
       return new URL(img.getAttribute("src"), document.baseURI).href;
     } catch (e) {
@@ -51,7 +57,12 @@
   function makeSource(opts) {
     // opts: { configUrl, checkUrl, defaultConfig, position, render(mark, config) -> {label, title} }
     var config = opts.defaultConfig;
-    var checkedUrls = new Set();
+    // Only URLs we've actually badged -- NOT "checked and got nothing yet".
+    // The proxy classifies asynchronously (can take seconds, e.g. Fase 3's
+    // classifier), so a scan can easily run before a mark exists yet. Not
+    // caching misses means later (periodic/mutation-triggered) scans keep
+    // retrying automatically until a mark shows up or the page closes.
+    var badgedUrls = new Set();
 
     fetch(API_BASE + opts.configUrl)
       .then(function (resp) {
@@ -69,10 +80,11 @@
       var byUrl = {};
       images.forEach(function (img) {
         var url = absoluteUrl(img);
-        if (!url || checkedUrls.has(url)) return;
-        checkedUrls.add(url);
-        urls.push(url);
-        byUrl[url] = byUrl[url] || [];
+        if (!url || badgedUrls.has(url)) return;
+        if (byUrl[url] === undefined) {
+          urls.push(url);
+          byUrl[url] = [];
+        }
         byUrl[url].push(img);
       });
 
@@ -87,6 +99,7 @@
           })
           .then(function (marks) {
             marks.forEach(function (mark) {
+              badgedUrls.add(mark.url);
               var rendered = opts.render(mark, config);
               (byUrl[mark.url] || []).forEach(function (img) {
                 addBadge(img, rendered.label, rendered.title, opts.position + rendered.style);
@@ -197,4 +210,13 @@
     attributes: true,
     attributeFilter: ["src"],
   });
+
+  // Belt-and-braces alongside the mutation-triggered debounce above: a
+  // page that keeps mutating (ads, trackers, infinite scroll -- nu.nl is a
+  // good example) can keep resetting that debounce indefinitely, so it
+  // never actually fires. A plain interval guarantees a scan still happens
+  // periodically no matter how busy the page is, and also naturally
+  // retries images whose async classification wasn't done yet on the
+  // first pass.
+  setInterval(scanAll, 3000);
 })();

@@ -19,6 +19,7 @@ import io
 import json
 import logging
 import os
+import re
 import urllib.request
 
 import c2pa
@@ -40,6 +41,14 @@ CLASSIFIER_URL = os.environ.get("AUTHENTIPI_CLASSIFIER_URL", "http://classifier:
 # Must be overridden to the host's LAN IP for real multi-device use.
 PUBLIC_APP_URL = os.environ.get("AUTHENTIPI_APP_BASE_URL", "http://localhost:8080")
 MARKER_SCRIPT_TAG = f'<script src="{PUBLIC_APP_URL}/static/marker.js"></script>'.encode()
+
+# Some sites deliver CSP via a <meta> tag instead of (or in addition to) a
+# response header -- stripping only the header misses those and the
+# injected marker script gets blocked anyway.
+CSP_META_TAG_RE = re.compile(
+    rb'<meta[^>]+http-equiv=["\']Content-Security-Policy(?:-Report-Only)?["\'][^>]*>',
+    re.IGNORECASE,
+)
 
 IMAGE_MIME_TYPES = {
     "image/jpeg",
@@ -277,7 +286,7 @@ class AuthentiPiAddon:
         flow.response.headers.pop("Content-Security-Policy", None)
         flow.response.headers.pop("Content-Security-Policy-Report-Only", None)
 
-        content = flow.response.content
+        content = CSP_META_TAG_RE.sub(b"", flow.response.content)
         if b"</head>" in content:
             flow.response.content = content.replace(b"</head>", MARKER_SCRIPT_TAG + b"</head>", 1)
         elif b"</body>" in content:

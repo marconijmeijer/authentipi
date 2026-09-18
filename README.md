@@ -276,6 +276,28 @@ proxy-addon (`proxy/authentipi_addon.py`) werkt.
   faalt de kernfunctie stil voor precies het soort content dat je al eens
   bezocht hebt.
 
+### Bekende beperkingen op drukke/dynamische sites
+
+`marker.js` is getest tegen een eenvoudige statische testpagina, maar
+zware, JS-gedreven sites (veel ads/trackers, responsive `srcset`-
+afbeeldingen, infinite scroll) bleken in de praktijk drie extra dingen
+nodig te hebben, inmiddels opgelost:
+
+- **`srcset`/`<picture>`**: de browser kan een andere afbeeldings-URL laden
+  dan wat in het `src`-attribuut staat. `marker.js` gebruikt nu
+  `img.currentSrc` (de URL die de browser écht laadde) in plaats van alleen
+  `src`.
+- **CSP via een `<meta>`-tag**: sommige sites leveren hun
+  Content-Security-Policy niet (alleen) als HTTP-header maar als
+  `<meta http-equiv="Content-Security-Policy">` in de HTML zelf — dat
+  wordt nu ook verwijderd, niet alleen de header.
+- **Debounce-starvation**: bij continue DOM-mutaties (ads, trackers) kon de
+  herscan-timer permanent gereset worden en dus nooit afgaan. Er draait nu
+  ook een vaste interval-scan (elke 3s) als vangnet, die tegelijk fungeert
+  als retry voor het geval een afbeelding nog niet klaar was met
+  classificeren (Fase 3 kan een paar seconden duren) toen de eerste check
+  liep.
+
 ## Experimentele AI-herkenning testen (Fase 3)
 
 Werkt op dezelfde proxy-installatie als hierboven (CA-cert + proxy-instelling
