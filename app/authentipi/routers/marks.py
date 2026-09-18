@@ -66,11 +66,15 @@ def check_marks(urls: str):
 
 
 @router.get("")
-def list_marks(limit: int = 50):
+def list_marks(limit: int = 50, offset: int = 0):
     limit = max(1, min(limit, 500))
+    offset = max(0, offset)
     with SessionLocal() as session:
         rows = session.execute(
-            select(ImageMark).order_by(ImageMark.timestamp.desc()).limit(limit)
+            select(ImageMark)
+            .order_by(ImageMark.timestamp.desc())
+            .offset(offset)
+            .limit(limit)
         ).scalars().all()
     return [
         {

@@ -82,6 +82,24 @@ table.detections .truncate {
 
 p.hint { color: var(--muted); font-size: 0.85rem; }
 
+.pagination {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.page-btn {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.page-btn:hover { border-color: var(--accent); color: var(--accent); }
+.page-btn-next { margin-left: auto; }
+
 .badge {
   display: inline-block;
   padding: 0.1rem 0.5rem;

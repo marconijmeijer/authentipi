@@ -1,24 +1,54 @@
-<table class="detections">
-  <thead>
-    <tr>
-      <th>Tijd (UTC)</th>
-      <th>Client</th>
-      <th>Domein</th>
-      <th>Dienst</th>
-      <th>Categorie</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for d in detections %}
-    <tr>
-      <td>{{ d.timestamp.strftime("%H:%M:%S") }}</td>
-      <td>{{ d.client_ip }}</td>
-      <td>{{ d.domain }}</td>
-      <td>{{ d.service }}</td>
-      <td><span class="badge badge-{{ d.category }}">{{ d.category }}</span></td>
-    </tr>
-    {% else %}
-    <tr><td colspan="5" class="empty">Nog geen detecties. Zet je router/DHCP DNS naar dit adres en genereer wat AI-verkeer.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div
+  id="detections"
+  {% if detections_offset == 0 %}
+  hx-get="/partials/detections?offset=0&limit={{ detections_limit }}"
+  hx-trigger="every 5s"
+  hx-swap="outerHTML"
+  {% endif %}
+>
+  <table class="detections">
+    <thead>
+      <tr>
+        <th>Tijd (UTC)</th>
+        <th>Client</th>
+        <th>Domein</th>
+        <th>Dienst</th>
+        <th>Categorie</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in detections %}
+      <tr>
+        <td>{{ d.timestamp.strftime("%H:%M:%S") }}</td>
+        <td>{{ d.client_ip }}</td>
+        <td>{{ d.domain }}</td>
+        <td>{{ d.service }}</td>
+        <td><span class="badge badge-{{ d.category }}">{{ d.category }}</span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="empty">Nog geen detecties. Zet je router/DHCP DNS naar dit adres en genereer wat AI-verkeer.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if detections_offset > 0 or detections_has_more %}
+  <div class="pagination">
+    {% if detections_offset > 0 %}
+    <button
+      class="page-btn page-btn-prev"
+      hx-get="/partials/detections?offset={{ [detections_offset - detections_limit, 0] | max }}&limit={{ detections_limit }}"
+      hx-target="#detections"
+      hx-swap="outerHTML"
+    >&laquo; Nieuwer</button>
+    {% endif %}
+    {% if detections_has_more %}
+    <button
+      class="page-btn page-btn-next"
+      hx-get="/partials/detections?offset={{ detections_offset + detections_limit }}&limit={{ detections_limit }}"
+      hx-target="#detections"
+      hx-swap="outerHTML"
+    >Oudere resultaten &raquo;</button>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

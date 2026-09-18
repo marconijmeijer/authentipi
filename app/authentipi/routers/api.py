@@ -26,11 +26,15 @@ def _detection_dict(d: Detection) -> dict:
 
 
 @router.get("/detections")
-def list_detections(limit: int = 100):
+def list_detections(limit: int = 100, offset: int = 0):
     limit = max(1, min(limit, 1000))
+    offset = max(0, offset)
     with SessionLocal() as session:
         rows = session.execute(
-            select(Detection).order_by(Detection.timestamp.desc()).limit(limit)
+            select(Detection)
+            .order_by(Detection.timestamp.desc())
+            .offset(offset)
+            .limit(limit)
         ).scalars().all()
     return [_detection_dict(d) for d in rows]
 

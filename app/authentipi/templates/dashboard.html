@@ -16,9 +16,7 @@
 
   <section>
     <h2>Recente detecties</h2>
-    <div id="detections" hx-get="/partials/detections" hx-trigger="every 5s" hx-swap="innerHTML">
-      {% include "_detections_table.html" %}
-    </div>
+    {% include "_detections_table.html" %}
   </section>
 
   <section>
@@ -28,8 +26,6 @@
       zijn gezien. Vereist dat clientapparaten verkeer via de proxy sturen
       en het proxy-CA-certificaat vertrouwen — zie README.
     </p>
-    <div id="marks" hx-get="/partials/marks" hx-trigger="every 5s" hx-swap="innerHTML">
-      {% include "_marks_table.html" %}
-    </div>
+    {% include "_marks_table.html" %}
   </section>
 {% endblock %}
