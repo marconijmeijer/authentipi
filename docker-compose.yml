@@ -43,9 +43,10 @@ services:
       # Publiek: het adres waarop CLIENT-apparaten de 'app'-service kunnen
       # bereiken over het netwerk (dus je LAN-IP, niet 'localhost' -- tenzij
       # je alleen vanaf deze machine zelf test). Gebruikt in de <script>-tag
-      # die in pagina's wordt geïnjecteerd. Zie "Content-marking testen" in
-      # README.md.
-      AUTHENTIPI_APP_BASE_URL: http://localhost:8080
+      # die in pagina's wordt geïnjecteerd. Overschrijf via een .env-bestand
+      # (AUTHENTIPI_APP_BASE_URL=http://<jouw-lan-ip>:8080) -- zie
+      # "Content-marking testen" in README.md en .env.example.
+      AUTHENTIPI_APP_BASE_URL: ${AUTHENTIPI_APP_BASE_URL:-http://localhost:8080}
     volumes:
       # mitmproxy genereert hier bij eerste start zijn CA-certificaat
       # (mitmproxy-ca-cert.pem), dat je op clientapparaten moet vertrouwen.

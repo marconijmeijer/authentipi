@@ -146,7 +146,25 @@ afbeeldingen te controleren op C2PA-manifesten en ze direct op de pagina te
 markeren. Dit is ingrijpender dan de DNS-laag: al het verkeer van een client
 die de proxy gebruikt, wordt ontsleuteld en geïnspecteerd.
 
-### 1. CA-certificaat ophalen
+### 1. Publiek adres instellen (verplicht voor een ander apparaat dan de host)
+
+De proxy injecteert een `<script src="...">`-tag in elke pagina. Standaard
+wijst die naar `http://localhost:8080` — dat werkt alleen als je vanaf
+dezelfde machine test. Test je vanaf een ander apparaat (telefoon, tablet),
+dan wijst "localhost" op dát apparaat naar zichzelf, niet naar AuthentiPi —
+het script laadt dan stil niet, en er verschijnt nooit een badge, ook al
+wordt de content wel correct herkend.
+
+Maak een `.env`-bestand aan (niet meegecommit, zie `.env.example`) met het
+LAN-IP van de machine waar AuthentiPi op draait:
+
+```bash
+cp .env.example .env
+# bewerk .env: AUTHENTIPI_APP_BASE_URL=http://<jouw-lan-ip>:8080
+docker compose up -d proxy
+```
+
+### 2. CA-certificaat ophalen
 
 mitmproxy genereert bij eerste start een eigen CA-certificaat in het
 `mitmproxy-ca` volume. Haal het bestand op:
@@ -155,7 +173,7 @@ mitmproxy genereert bij eerste start een eigen CA-certificaat in het
 docker compose cp proxy:/home/mitmproxy/.mitmproxy/mitmproxy-ca-cert.pem ./mitmproxy-ca-cert.pem
 ```
 
-### 2. Certificaat vertrouwen op het clientapparaat
+### 3. Certificaat vertrouwen op het clientapparaat
 
 - **iPhone:** stuur/AirDrop `mitmproxy-ca-cert.pem` naar het toestel, open
   het (installeert een geconfigureerd profiel), en zet 'm daarna **ook**
@@ -167,13 +185,13 @@ docker compose cp proxy:/home/mitmproxy/.mitmproxy/mitmproxy-ca-cert.pem ./mitmp
 - **Android:** Instellingen → Beveiliging → Meer beveiligingsinstellingen →
   Certificaten installeren → CA-certificaat.
 
-### 3. Proxy instellen op het clientapparaat
+### 4. Proxy instellen op het clientapparaat
 
 Zet in de Wi-Fi-instellingen van het apparaat een HTTP-proxy (handmatig) op
 het LAN-IP van AuthentiPi, poort **8081** (dezelfde plek waar je eerder de
 DNS-server instelde).
 
-### 4. Testen
+### 5. Testen
 
 De pagina moet je via **HTTP** bezoeken (niet als lokaal `file://`-bestand
 openen) — alleen dan gaat de pagina zelf ook door de proxy, wat nodig is om
