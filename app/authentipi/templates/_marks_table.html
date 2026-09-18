@@ -12,6 +12,8 @@
         <th>Tijd (UTC)</th>
         <th>Client</th>
         <th>URL</th>
+        <th>Type</th>
+        <th>Vertrouwd</th>
         <th>Bron (claim generator)</th>
       </tr>
     </thead>
@@ -21,10 +23,17 @@
         <td>{{ m.timestamp.strftime("%H:%M:%S") }}</td>
         <td>{{ m.client_ip }}</td>
         <td class="truncate" title="{{ m.url }}">{{ m.url }}</td>
+        <td>{{ m.source_type or "onbekend" }}</td>
+        <td>
+          {% if m.trusted is sameas true %}<span class="badge badge-trusted">vertrouwd</span>
+          {% elif m.trusted is sameas false %}<span class="badge badge-untrusted">niet vertrouwd</span>
+          {% else %}<span class="badge">onbekend</span>
+          {% endif %}
+        </td>
         <td>{{ m.claim_generator or "onbekend" }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="empty">Nog geen C2PA-gemarkeerde content gezien. Vereist dat de proxy-service actief is en een client via de proxy verkeer stuurt.</td></tr>
+      <tr><td colspan="6" class="empty">Nog geen C2PA-gemarkeerde content gezien. Vereist dat de proxy-service actief is en een client via de proxy verkeer stuurt.</td></tr>
       {% endfor %}
     </tbody>
   </table>

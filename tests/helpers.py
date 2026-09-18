@@ -64,6 +64,8 @@ def report_mark(
     client_ip: str = "203.0.113.5",
     mime_type: str = "image/jpeg",
     claim_generator: str | None = "Test Generator",
+    source_type: str | None = None,
+    trusted: bool | None = None,
 ) -> None:
     resp = requests.post(
         f"{API_BASE}/api/marks",
@@ -72,6 +74,8 @@ def report_mark(
             "client_ip": client_ip,
             "mime_type": mime_type,
             "claim_generator": claim_generator,
+            "source_type": source_type,
+            "trusted": trusted,
         },
         timeout=5,
     )

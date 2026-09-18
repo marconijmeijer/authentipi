@@ -52,11 +52,24 @@
     img.parentNode.insertBefore(wrapper, img);
     wrapper.appendChild(img);
 
+    var label = (badgeConfig.icon ? badgeConfig.icon + " " : "") + badgeConfig.text;
+    if (mark.source_type) label += " · " + mark.source_type;
+    if (mark.trusted === false) label += " · ongeverifieerd";
+
+    var titleParts = [];
+    if (mark.source_type) titleParts.push("Type: " + mark.source_type);
+    titleParts.push(
+      mark.trusted === true
+        ? "Ondertekenaar: vertrouwd"
+        : mark.trusted === false
+        ? "Ondertekenaar: niet vertrouwd (bv. zelf-ondertekend)"
+        : "Vertrouwensstatus: onbekend"
+    );
+    if (mark.claim_generator) titleParts.push("Bron: " + mark.claim_generator);
+
     var badge = document.createElement("div");
-    badge.textContent = (badgeConfig.icon ? badgeConfig.icon + " " : "") + badgeConfig.text;
-    badge.title = mark.claim_generator
-      ? "Bron: " + mark.claim_generator
-      : "C2PA Content Credentials gevonden";
+    badge.textContent = label;
+    badge.title = titleParts.join(" | ");
     badge.style.cssText =
       "position:absolute;top:4px;right:4px;z-index:2147483647;" +
       "background:" + badgeConfig.bg_color + ";color:" + badgeConfig.text_color + ";" +

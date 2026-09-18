@@ -4,42 +4,83 @@
   <meta charset="utf-8" />
   <title>AuthentiPi — content-marking testpagina</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
-    img { max-width: 100%; display: block; margin-top: 1rem; border: 1px solid #ccc; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+    img { max-width: 100%; display: block; margin-top: 0.5rem; border: 1px solid #ccc; }
+    .variant { margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #eee; }
+    .expect { color: #555; font-size: 0.9rem; }
+    code { background: #f2f2f2; padding: 0.1rem 0.3rem; border-radius: 3px; }
   </style>
 </head>
 <body>
   <h1>AuthentiPi — content-marking testpagina</h1>
   <p>
-    Open dit bestand in een browser die is ingesteld om AuthentiPi's
-    <code>proxy</code>-service te gebruiken (HTTP-proxy op poort 8081, met
-    het mitmproxy-CA-certificaat vertrouwd — zie README.md, sectie
-    "Content-marking testen").
+    Open dit bestand via <strong>HTTP</strong> (niet als lokaal
+    <code>file://</code>-bestand) in een browser die is ingesteld om
+    AuthentiPi's <code>proxy</code>-service te gebruiken (HTTP-proxy op
+    poort 8081, met het mitmproxy-CA-certificaat vertrouwd — zie README.md,
+    sectie "Content-marking testen").
   </p>
   <p>
-    Als het werkt, verschijnt hieronder een "✓ Content Credentials"-badge in
-    de hoek van de afbeelding, en een nieuwe rij op het AuthentiPi-dashboard
-    onder "Content Credentials (C2PA)".
+    Zes varianten hieronder dekken alle combinaties die AuthentiPi op dit
+    moment onderscheidt: wel/geen manifest, wel/geen classificeerbare
+    actie (AI-gegenereerd, samengesteld, camera-opname, bewerkt), en
+    wel/niet een vertrouwde ondertekenaar.
   </p>
 
-  <h2>Afbeelding met C2PA-manifest</h2>
+  <div class="variant">
+    <h2>1. Generiek manifest, vertrouwde ondertekenaar</h2>
+    <p class="expect">Verwacht: badge zonder type-classificatie (geen actions-assertion), <strong>geen</strong> "ongeverifieerd"-suffix — ondertekend door een echte, door AuthentiPi's trust-anchors vertrouwde partij (Adobe's officiële test-signer).</p>
+    <img src="images/generic-credentials.jpg" alt="Generiek C2PA-manifest, vertrouwd" />
+  </div>
+
+  <div class="variant">
+    <h2>2. AI-gegenereerd</h2>
+    <p class="expect">Verwacht: badge met "· AI-gegenereerd · ongeverifieerd" (zelfondertekend testcertificaat, dus niet in de officiële trust-lijst).</p>
+    <img src="images/ai-generated.jpg" alt="AI-gegenereerde test-afbeelding" />
+  </div>
+
+  <div class="variant">
+    <h2>3. Deels AI-gegenereerd (samengesteld)</h2>
+    <p class="expect">Verwacht: badge met "· Deels AI-gegenereerd (samengesteld) · ongeverifieerd".</p>
+    <img src="images/composite-ai.jpg" alt="Samengestelde AI-test-afbeelding" />
+  </div>
+
+  <div class="variant">
+    <h2>4. Camera-opname</h2>
+    <p class="expect">Verwacht: badge met "· Camera-opname · ongeverifieerd".</p>
+    <img src="images/camera-capture.jpg" alt="Camera-opname test-afbeelding" />
+  </div>
+
+  <div class="variant">
+    <h2>5. Bewerkt</h2>
+    <p class="expect">Verwacht: badge met "· Licht bewerkt · ongeverifieerd".</p>
+    <img src="images/edited.jpg" alt="Bewerkte test-afbeelding" />
+  </div>
+
+  <div class="variant">
+    <h2>6. Geen C2PA-manifest</h2>
+    <p class="expect">Verwacht: <strong>geen</strong> badge — dit is de "negatieve" test om te bevestigen dat AuthentiPi geen valse markeringen op gewone content zet.</p>
+    <img src="images/no-manifest.jpg" alt="Afbeelding zonder C2PA-manifest" />
+  </div>
+
   <p>
-    Test-fixture uit de officiële
+    Elke gemarkeerde variant hierboven zou ook een rij moeten opleveren op
+    het AuthentiPi-dashboard onder "Content Credentials (C2PA)", met de
+    bijbehorende Type- en Vertrouwd-kolom.
+  </p>
+  <p>
+    Zie je geen badges? Controleer eerst de logs van de
+    <code>proxy</code>-container (<code>docker compose logs proxy</code>) —
+    bij het opstarten moet daar "C2PA trust anchors geladen" in staan.
+  </p>
+
+  <hr />
+  <p style="color:#888; font-size:0.8rem;">
+    Bronnen: afbeeldingen 1 en 6 komen uit de officiële
     <a href="https://github.com/contentauth/c2pa-python" target="_blank" rel="noopener">c2pa-python</a>
-    testset van de Content Authenticity Initiative — bevat een geldig
-    C2PA-manifest.
-  </p>
-  <img
-    src="https://raw.githubusercontent.com/contentauth/c2pa-python/main/tests/fixtures/cloud.jpg"
-    alt="C2PA test-fixture (cloud.jpg)"
-  />
-
-  <p>
-    Zie je geen badge? Check eerst of de browser echt via de proxy loopt
-    (bijv. via <a href="https://contentcredentials.org/verify" target="_blank" rel="noopener">contentcredentials.org/verify</a>
-    om te bevestigen dat de afbeelding zelf nog een manifest heeft), en
-    controleer de logs van de <code>proxy</code>-container
-    (<code>docker compose logs proxy</code>).
+    testset (Content Authenticity Initiative, Apache-2.0/MIT). Afbeeldingen
+    2–5 zijn lokaal gegenereerd met hetzelfde SDK en diens officiële
+    ES256-testcertificaat, met een eigen manifest per variant.
   </p>
 </body>
 </html>

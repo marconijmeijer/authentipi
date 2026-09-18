@@ -54,3 +54,11 @@ class ImageMark(Base):
     mime_type: Mapped[str] = mapped_column(String)
     claim_generator: Mapped[str] = mapped_column(String, nullable=True)
     summary: Mapped[str] = mapped_column(String, nullable=True)
+    # Human-readable classification derived from the manifest's c2pa.actions
+    # digitalSourceType (e.g. "AI-gegenereerd", "Camera-opname"). Null when
+    # the manifest carries no action assertions to classify.
+    source_type: Mapped[str] = mapped_column(String, nullable=True)
+    # True: signer chains to a trusted C2PA root (validation_state
+    # "Trusted"). False: manifest is structurally valid but the signer is
+    # not trusted (e.g. self-signed). Null: undetermined.
+    trusted: Mapped[bool] = mapped_column(Boolean, nullable=True)

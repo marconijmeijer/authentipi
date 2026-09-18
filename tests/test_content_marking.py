@@ -32,3 +32,15 @@ def test_reported_mark_is_returned_by_check():
 def test_check_with_no_matches_returns_empty_list():
     url = f"http://example.test/{uuid.uuid4()}-unmarked.jpg"
     assert check_marks([url]) == []
+
+
+def test_source_type_and_trust_are_round_tripped():
+    url = f"http://example.test/{uuid.uuid4()}-ai.jpg"
+    report_mark(url, source_type="AI-gegenereerd", trusted=False)
+
+    results = check_marks([url])
+
+    matched = next((r for r in results if r["url"] == url), None)
+    assert matched is not None
+    assert matched["source_type"] == "AI-gegenereerd"
+    assert matched["trusted"] is False

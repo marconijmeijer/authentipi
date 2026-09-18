@@ -16,6 +16,8 @@ class MarkReport(BaseModel):
     mime_type: str
     claim_generator: str | None = None
     summary: str | None = None
+    source_type: str | None = None
+    trusted: bool | None = None
 
 
 @router.post("")
@@ -28,6 +30,8 @@ def report_mark(mark: MarkReport):
                 mime_type=mark.mime_type,
                 claim_generator=mark.claim_generator,
                 summary=mark.summary,
+                source_type=mark.source_type,
+                trusted=mark.trusted,
             )
         )
         session.commit()
@@ -60,6 +64,8 @@ def check_marks(urls: str):
                 "url": row.url,
                 "claim_generator": row.claim_generator,
                 "summary": row.summary,
+                "source_type": row.source_type,
+                "trusted": row.trusted,
             }
         )
     return results
@@ -85,6 +91,8 @@ def list_marks(limit: int = 50, offset: int = 0):
             "mime_type": r.mime_type,
             "claim_generator": r.claim_generator,
             "summary": r.summary,
+            "source_type": r.source_type,
+            "trusted": r.trusted,
         }
         for r in rows
     ]

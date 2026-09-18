@@ -35,6 +35,12 @@ Vroege proof-of-concept. Fase 1 en Fase 2 hieronder zijn gebouwd en getest.
   welke afbeeldingen op de pagina een manifest hebben, en overlayt daar een
   badge op — de gebruiker ziet dus direct op de afbeelding zelf een
   markering, in plaats van alleen een dashboard-regel.
+- De badge toont, waar bepaalbaar, ook **wat voor soort content** het is
+  (AI-gegenereerd, samengesteld, camera-opname, bewerkt — afgeleid van de
+  `digitalSourceType` in de manifest-acties) en of de **ondertekenaar
+  vertrouwd** is (geverifieerd tegen de officiële C2PA-trust-anchor-lijst,
+  niet alleen "is er een manifest"). Manifesten die tamper-checks niet
+  doorstaan worden genegeerd, niet gemarkeerd.
 - Vereist het installeren van mitmproxy's CA-certificaat op clientapparaten
   (net als bedrijfs-firewalls doen) en het instellen van een HTTP-proxy op
   die apparaten. Zie "Content-marking testen" hieronder.
@@ -204,10 +210,16 @@ python3 -m http.server 8090
 ```
 
 Bezoek daarna vanaf het clientapparaat `http://<lan-ip-van-authentipi>:8090/content-marking-test.html`
-(dezelfde LAN-IP als bij de DNS/proxy-instellingen). Die pagina embedt een
-bekende C2PA-test-fixture uit de officiële `c2pa-python`-testset. Je zou een
-klein "✓ Content Credentials"-badge in de hoek van de afbeelding moeten
-zien, en een nieuwe rij op het dashboard onder "Content Credentials (C2PA)".
+(dezelfde LAN-IP als bij de DNS/proxy-instellingen). Die pagina embedt zes
+afbeeldingen die samen alle classificaties dekken die AuthentiPi
+onderscheidt: AI-gegenereerd, deels AI-gegenereerd (samengesteld),
+camera-opname, bewerkt, een generiek vertrouwd manifest, en een afbeelding
+zonder manifest (negatieve test). Zie
+[`proxy/test-fixtures/README.md`](proxy/test-fixtures/README.md) voor
+details per variant. Je zou per variant een badge met de bijbehorende
+classificatie moeten zien (of geen badge, voor de laatste), en nieuwe rijen
+op het dashboard onder "Content Credentials (C2PA)" met Type- en
+Vertrouwd-kolommen.
 
 Wil je het met echte, zelf gegenereerde content proberen: gebruik een recent
 met ChatGPT/DALL·E, Adobe Firefly of Google Gemini/Imagen gegenereerde
