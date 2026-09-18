@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import log_watcher
@@ -49,6 +50,24 @@ app.add_middleware(
 )
 
 static_dir = Path(__file__).parent / "static"
+
+
+@app.get("/static/marker.js")
+def marker_js():
+    # Registered before the StaticFiles mount below so it takes priority
+    # for this exact path. marker.js changes often during development, and
+    # a client browser silently serving a stale cached copy from an
+    # earlier visit (rather than re-fetching it) was a real, confusing bug
+    # -- fixes to this file appeared to "not work" because the browser
+    # never actually loaded the new version. No-store makes that
+    # impossible regardless of what any upstream proxy does.
+    return FileResponse(
+        static_dir / "marker.js",
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 app.include_router(api.router)

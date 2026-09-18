@@ -134,6 +134,15 @@ class AuthentiPiAddon:
         if flow.response is None or not flow.response.content:
             return
 
+        if flow.request.path.endswith("/static/marker.js"):
+            # Belt-and-braces: the app already sends Cache-Control: no-store
+            # for this file itself, but strip here too in case anything
+            # between the client and the app (this proxy included, if
+            # AuthentiPi's own dashboard traffic happens to route through
+            # it too) would otherwise let a stale cached copy stick around.
+            self._strip_cache_headers(flow)
+            return
+
         content_type = (
             flow.response.headers.get("content-type", "").split(";")[0].strip().lower()
         )
