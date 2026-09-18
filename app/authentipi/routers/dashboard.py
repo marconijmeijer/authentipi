@@ -189,6 +189,7 @@ def update_heuristic_settings(
     bg_color: str = Form("#ffb84d"),
     threshold: float = Form(0.6),
     enabled: str = Form(""),
+    debug: str = Form(""),
 ):
     with SessionLocal() as session:
         row = session.get(HeuristicMarkerSettings, 1)
@@ -201,5 +202,6 @@ def update_heuristic_settings(
         row.bg_color = bg_color
         row.threshold = max(0.0, min(threshold, 1.0))
         row.enabled = enabled == "on"
+        row.debug = debug == "on"
         session.commit()
     return RedirectResponse(url="/settings", status_code=303)

@@ -15,6 +15,7 @@ DEFAULTS = {
     "bg_color": "#ffb84d",
     "enabled": False,
     "threshold": 0.6,
+    "debug": False,
 }
 
 
@@ -25,6 +26,7 @@ class HeuristicSettingsPayload(BaseModel):
     bg_color: str
     enabled: bool
     threshold: float
+    debug: bool = False
 
 
 def _as_dict(row: HeuristicMarkerSettings | None) -> dict:
@@ -37,6 +39,7 @@ def _as_dict(row: HeuristicMarkerSettings | None) -> dict:
         "bg_color": row.bg_color,
         "enabled": row.enabled,
         "threshold": row.threshold,
+        "debug": row.debug,
     }
 
 
@@ -59,5 +62,6 @@ def set_heuristic_settings(payload: HeuristicSettingsPayload):
         row.bg_color = payload.bg_color
         row.enabled = payload.enabled
         row.threshold = max(0.0, min(payload.threshold, 1.0))
+        row.debug = payload.debug
         session.commit()
         return _as_dict(row)

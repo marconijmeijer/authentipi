@@ -80,6 +80,10 @@ class HeuristicMarkerSettings(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     # Only badge when the "artificial" score is at or above this (0-1).
     threshold: Mapped[float] = mapped_column(Float, default=0.6)
+    # Debug mode: report EVERY classified image, even below threshold, so
+    # you can see actual scores while tuning the threshold instead of
+    # guessing blind. Meant to be temporary, not left on -- noisy by design.
+    debug: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class HeuristicMark(Base):
@@ -99,3 +103,6 @@ class HeuristicMark(Base):
     label: Mapped[str] = mapped_column(String)
     score: Mapped[float] = mapped_column(Float)
     model_name: Mapped[str] = mapped_column(String)
+    # False for rows only reported because debug mode was on -- the score
+    # didn't actually cross the configured threshold at report time.
+    above_threshold: Mapped[bool] = mapped_column(Boolean, default=True)

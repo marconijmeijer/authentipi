@@ -17,6 +17,7 @@ class HeuristicMarkReport(BaseModel):
     label: str
     score: float
     model_name: str
+    above_threshold: bool = True
 
 
 @router.post("")
@@ -30,6 +31,7 @@ def report_heuristic_mark(mark: HeuristicMarkReport):
                 label=mark.label,
                 score=mark.score,
                 model_name=mark.model_name,
+                above_threshold=mark.above_threshold,
             )
         )
         session.commit()
@@ -61,6 +63,7 @@ def check_heuristic_marks(urls: str):
                 "label": row.label,
                 "score": row.score,
                 "model_name": row.model_name,
+                "above_threshold": row.above_threshold,
             }
         )
     return results
@@ -87,6 +90,7 @@ def list_heuristic_marks(limit: int = 50, offset: int = 0):
             "label": r.label,
             "score": r.score,
             "model_name": r.model_name,
+            "above_threshold": r.above_threshold,
         }
         for r in rows
     ]

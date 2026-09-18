@@ -46,3 +46,23 @@ def test_heuristic_settings_round_trip():
         assert get_heuristic_settings() == updated
     finally:
         set_heuristic_settings(**original)
+
+
+def test_below_threshold_mark_is_flagged_as_such():
+    url = f"http://example.test/{uuid.uuid4()}-debug.jpg"
+    report_heuristic_mark(url, score=0.22, above_threshold=False)
+
+    results = check_heuristic_marks([url])
+
+    matched = next((r for r in results if r["url"] == url), None)
+    assert matched is not None
+    assert matched["above_threshold"] is False
+
+
+def test_heuristic_settings_debug_flag_round_trips():
+    original = get_heuristic_settings()
+    try:
+        updated = set_heuristic_settings(debug=True)
+        assert updated["debug"] is True
+    finally:
+        set_heuristic_settings(**original)

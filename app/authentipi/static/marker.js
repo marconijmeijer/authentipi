@@ -150,13 +150,24 @@
     },
     render: function (mark, config) {
       var pct = Math.round((mark.score || 0) * 100);
-      return {
-        label: (config.icon ? config.icon + " " : "") + config.text + " · " + pct + "%",
-        title:
-          "Experimentele, niet-geverifieerde schatting van een lokaal AI-model (" +
+      var debugRow = mark.above_threshold === false;
+
+      var label = debugRow
+        ? "\u{1F41E} debug: " + pct + "% (onder drempel)"
+        : (config.icon ? config.icon + " " : "") + config.text + " · " + pct + "%";
+
+      var title = debugRow
+        ? "Debug-modus: score haalde de ingestelde drempel niet, normaal zou dit " +
+          "geen badge krijgen. Alleen zichtbaar omdat debug-modus aanstaat."
+        : "Experimentele, niet-geverifieerde schatting van een lokaal AI-model (" +
           (mark.model_name || "onbekend model") +
-          "). Kan fout zitten -- geen cryptografisch bewijs zoals bij C2PA.",
-      };
+          "). Kan fout zitten -- geen cryptografisch bewijs zoals bij C2PA.";
+
+      var style = debugRow
+        ? "background:rgba(120,120,120,0.85);color:#fff;border:1px dashed #fff;"
+        : "background:" + config.bg_color + ";color:" + config.text_color + ";";
+
+      return { label: label, title: title, style: style };
     },
   });
 

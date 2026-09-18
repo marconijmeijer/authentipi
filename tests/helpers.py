@@ -97,6 +97,7 @@ def report_heuristic_mark(
     label: str = "artificial",
     score: float = 0.75,
     model_name: str = "test-model",
+    above_threshold: bool = True,
 ) -> None:
     resp = requests.post(
         f"{API_BASE}/api/heuristic-marks",
@@ -107,6 +108,7 @@ def report_heuristic_mark(
             "label": label,
             "score": score,
             "model_name": model_name,
+            "above_threshold": above_threshold,
         },
         timeout=5,
     )

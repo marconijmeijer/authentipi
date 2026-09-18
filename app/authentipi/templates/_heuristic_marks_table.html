@@ -13,6 +13,7 @@
         <th>Client</th>
         <th>URL</th>
         <th>Score</th>
+        <th>Status</th>
         <th>Model</th>
       </tr>
     </thead>
@@ -23,10 +24,15 @@
         <td>{{ m.client_ip }}</td>
         <td class="truncate" title="{{ m.url }}">{{ m.url }}</td>
         <td>{{ (m.score * 100) | round | int }}%</td>
+        <td>
+          {% if m.above_threshold %}<span class="badge badge-untrusted">geflagged</span>
+          {% else %}<span class="badge">debug (onder drempel)</span>
+          {% endif %}
+        </td>
         <td>{{ m.model_name }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="5" class="empty">Nog geen experimentele detecties. Vereist de <code>classifier</code>-service (opt-in, zie README) en de toggle hieronder op de instellingenpagina.</td></tr>
+      <tr><td colspan="6" class="empty">Nog geen experimentele detecties. Vereist de <code>classifier</code>-service (opt-in, zie README) en de toggle hieronder op de instellingenpagina.</td></tr>
       {% endfor %}
     </tbody>
   </table>

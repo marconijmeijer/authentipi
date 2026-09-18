@@ -62,6 +62,13 @@
         Drempel (0–1, hoger = minder vals-positief)
         <input type="number" name="threshold" value="{{ heuristic.threshold }}" min="0" max="1" step="0.05" style="width:5rem;" />
       </label>
+      <label class="checkbox-row">
+        <input type="checkbox" name="debug" {% if heuristic.debug %}checked{% endif %} />
+        Debug-modus: toon élke geclassificeerde afbeelding met het
+        percentage, ook onder de drempel (grijze, gestippelde badge) —
+        handig om de drempel te kalibreren, maar bedoeld als tijdelijk:
+        zonder deze modus wordt alleen boven de drempel iets getoond.
+      </label>
       <label class="field-row">
         Icoon
         <input type="text" name="icon" value="{{ heuristic.icon }}" maxlength="4" size="4" id="heuristic-icon" />

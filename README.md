@@ -307,6 +307,20 @@ maar besef dat dat ook meer vals-positieven op echte foto's oplevert. Dit
 is precies waarom deze badge bewust anders oogt dan de C2PA-badge: het is
 een gok, geen bewijs.
 
+### 4. Drempel kalibreren met debug-modus
+
+Zonder verdere info is de drempel bijstellen gokken: je ziet alleen iets
+als een score 'm al haalt, dus je weet niet hoe dicht andere afbeeldingen
+erbij zaten. Vink op de instellingenpagina **"Debug-modus"** aan (onder de
+Fase 3-sectie) om dat zichtbaar te maken: dan rapporteert de proxy het
+percentage van **elke** geclassificeerde afbeelding, ook ver onder de
+drempel, als grijze/gestippelde badge met "debug: X% (onder drempel)".
+Zo zie je de werkelijke spreiding van scores terwijl je de drempel
+bijstelt, in plaats van alleen "wel/geen badge". Zet de debug-modus weer
+uit als je klaar bent met kalibreren — hij is bewust bedoeld als tijdelijk
+hulpmiddel, niet als permanente stand (elke afbeelding zonder manifest
+krijgt er dan een zichtbare badge bij, ook de overduidelijk echte).
+
 ## Domeinlijsten (`rules/`)
 
 Zie [`rules/README.md`](rules/README.md) voor het formaat en hoe je eigen

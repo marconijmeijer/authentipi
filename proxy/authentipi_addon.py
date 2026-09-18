@@ -225,7 +225,16 @@ class AuthentiPiAddon:
             return
 
         artificial = next((p for p in predictions if p.get("label") == "artificial"), None)
-        if artificial is None or artificial.get("score", 0) < settings.get("threshold", 0.6):
+        if artificial is None:
+            return
+
+        threshold = settings.get("threshold", 0.6)
+        above_threshold = artificial.get("score", 0) >= threshold
+        if not above_threshold and not settings.get("debug"):
+            # Below threshold and debug mode off: nothing to show for this
+            # one. With debug mode on, report it anyway (see module intro)
+            # so scores are visible while tuning the threshold, not just
+            # the ones that happened to clear it.
             return
 
         try:
@@ -238,6 +247,7 @@ class AuthentiPiAddon:
                     "label": "artificial",
                     "score": artificial["score"],
                     "model_name": classify_result.get("model", "unknown"),
+                    "above_threshold": above_threshold,
                 },
                 timeout=3,
             )
