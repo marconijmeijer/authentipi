@@ -14,6 +14,7 @@ from .db import init_db
 from .rules import ruleset
 from .routers import (
     api,
+    client_debug,
     dashboard,
     heuristic_marks,
     heuristic_settings,
@@ -56,3 +57,4 @@ app.include_router(marks.router)
 app.include_router(marker_settings.router)
 app.include_router(heuristic_marks.router)
 app.include_router(heuristic_settings.router)
+app.include_router(client_debug.router)

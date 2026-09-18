@@ -17,6 +17,24 @@
   var BATCH_SIZE = 40;
   var badgedElements = new WeakSet();
 
+  // --- TEMPORARY diagnostics (remove once badge-visibility issues on real
+  // sites are confirmed fixed): reports what this script actually saw in a
+  // real browser to the backend log, since we can't open devtools remotely.
+  function reportDebug(payload) {
+    try {
+      payload.page = location.href;
+      fetch(API_BASE + "/api/client-debug", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).catch(function () {});
+    } catch (e) {
+      /* never let diagnostics break the page */
+    }
+  }
+
+  reportDebug({ event: "marker.js started", apiBase: API_BASE });
+
   function absoluteUrl(img) {
     // currentSrc is the URL the browser actually picked/loaded -- for a
     // plain <img src="...">, that's the same as src; for <img srcset="...">
@@ -70,22 +88,37 @@
       })
       .then(function (cfg) {
         if (cfg) config = cfg;
+        reportDebug({ source: opts.name, configLoaded: !!cfg });
       })
-      .catch(function () {
-        /* keep defaults */
+      .catch(function (err) {
+        reportDebug({ source: opts.name, configError: String(err) });
       });
 
     function checkBatch(images) {
       var urls = [];
       var byUrl = {};
+      var noUrl = 0;
       images.forEach(function (img) {
         var url = absoluteUrl(img);
-        if (!url || badgedUrls.has(url)) return;
+        if (!url) {
+          noUrl++;
+          return;
+        }
+        if (badgedUrls.has(url)) return;
         if (byUrl[url] === undefined) {
           urls.push(url);
           byUrl[url] = [];
         }
         byUrl[url].push(img);
+      });
+
+      reportDebug({
+        source: opts.name,
+        totalImages: images.length,
+        imagesWithNoUrl: noUrl,
+        urlsToCheck: urls.length,
+        alreadyBadged: badgedUrls.size,
+        sampleUrls: urls.slice(0, 5),
       });
 
       if (urls.length === 0) return;
@@ -95,9 +128,10 @@
         var qs = encodeURIComponent(slice.join(","));
         fetch(API_BASE + opts.checkUrl + qs)
           .then(function (resp) {
-            return resp.ok ? resp.json() : [];
+            return resp.ok ? resp.json() : Promise.reject(new Error("http " + resp.status));
           })
           .then(function (marks) {
+            reportDebug({ source: opts.name, checkResultCount: marks.length });
             marks.forEach(function (mark) {
               badgedUrls.add(mark.url);
               var rendered = opts.render(mark, config);
@@ -106,8 +140,8 @@
               });
             });
           })
-          .catch(function () {
-            /* best-effort; a failed check should never break the page */
+          .catch(function (err) {
+            reportDebug({ source: opts.name, checkError: String(err) });
           });
       }
     }
@@ -118,6 +152,7 @@
   }
 
   var scanC2pa = makeSource({
+    name: "c2pa",
     configUrl: "/api/marker-settings",
     checkUrl: "/api/marks/check?urls=",
     position: "top:4px;right:4px;",
@@ -152,6 +187,7 @@
   });
 
   var scanHeuristic = makeSource({
+    name: "heuristic",
     configUrl: "/api/heuristic-settings",
     checkUrl: "/api/heuristic-marks/check?urls=",
     position: "bottom:4px;right:4px;",
