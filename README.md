@@ -265,6 +265,16 @@ proxy-addon (`proxy/authentipi_addon.py`) werkt.
 - Sommige sites met certificate pinning (bankieren-apps, sommige
   besloten apps) werken niet meer zolang de proxy actief is — dat is
   inherent aan MITM-interceptie, niet oplosbaar vanuit AuthentiPi.
+- De addon verwijdert conditionele cache-headers (`If-None-Match`,
+  `If-Modified-Since`) van uitgaande requests en cache-headers van
+  afbeeldingsresponses (`Cache-Control: no-store`). Zonder dit zou een al
+  eerder bezochte afbeelding soms nooit meer over het echte netwerk gaan
+  (browsercache of een lege 304-respons) — dan ziet AuthentiPi 'm ook nooit
+  en blijft-ie voorgoed ongemarkeerd, ook al staat alles verder goed
+  ingesteld. Kost iets meer bandbreedte/laadtijd (afbeeldingen worden niet
+  meer lokaal gecachet zolang de proxy actief is), maar zonder deze stap
+  faalt de kernfunctie stil voor precies het soort content dat je al eens
+  bezocht hebt.
 
 ## Experimentele AI-herkenning testen (Fase 3)
 

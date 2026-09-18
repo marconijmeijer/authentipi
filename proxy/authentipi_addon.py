@@ -111,6 +111,16 @@ class AuthentiPiAddon:
     def __init__(self) -> None:
         self._context = _build_context()
 
+    def request(self, flow: http.HTTPFlow) -> None:
+        # Without this, a browser that already has an image cached from
+        # before AuthentiPi was set up may serve it locally or via a
+        # conditional GET (304 Not Modified, empty body) forever -- the
+        # proxy then never sees real image bytes to inspect, and nothing
+        # ever gets marked, silently. Stripping these forces a full
+        # response every time so inspection can actually happen.
+        flow.request.headers.pop("If-None-Match", None)
+        flow.request.headers.pop("If-Modified-Since", None)
+
     def response(self, flow: http.HTTPFlow) -> None:
         if flow.response is None or not flow.response.content:
             return
@@ -120,9 +130,18 @@ class AuthentiPiAddon:
         )
 
         if content_type in IMAGE_MIME_TYPES:
+            self._strip_cache_headers(flow)
             self._inspect_image(flow, content_type)
         elif content_type == "text/html":
             self._inject_marker(flow)
+
+    def _strip_cache_headers(self, flow: http.HTTPFlow) -> None:
+        """Stop the browser from caching this image response, so a later
+        visit results in a real network request (and thus another chance
+        for AuthentiPi to inspect it) instead of a silent local cache hit."""
+        for header in ("Cache-Control", "Expires", "ETag", "Last-Modified", "Age"):
+            flow.response.headers.pop(header, None)
+        flow.response.headers["Cache-Control"] = "no-store"
 
     def _client_ip(self, flow: http.HTTPFlow) -> str:
         address = flow.client_conn.address
