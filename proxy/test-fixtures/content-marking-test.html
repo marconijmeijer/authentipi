@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <title>AuthentiPi — content-marking testpagina</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+    img { max-width: 100%; display: block; margin-top: 1rem; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h1>AuthentiPi — content-marking testpagina</h1>
+  <p>
+    Open dit bestand in een browser die is ingesteld om AuthentiPi's
+    <code>proxy</code>-service te gebruiken (HTTP-proxy op poort 8081, met
+    het mitmproxy-CA-certificaat vertrouwd — zie README.md, sectie
+    "Content-marking testen").
+  </p>
+  <p>
+    Als het werkt, verschijnt hieronder een "✓ Content Credentials"-badge in
+    de hoek van de afbeelding, en een nieuwe rij op het AuthentiPi-dashboard
+    onder "Content Credentials (C2PA)".
+  </p>
+
+  <h2>Afbeelding met C2PA-manifest</h2>
+  <p>
+    Test-fixture uit de officiële
+    <a href="https://github.com/contentauth/c2pa-python" target="_blank" rel="noopener">c2pa-python</a>
+    testset van de Content Authenticity Initiative — bevat een geldig
+    C2PA-manifest.
+  </p>
+  <img
+    src="https://raw.githubusercontent.com/contentauth/c2pa-python/main/tests/fixtures/cloud.jpg"
+    alt="C2PA test-fixture (cloud.jpg)"
+  />
+
+  <p>
+    Zie je geen badge? Check eerst of de browser echt via de proxy loopt
+    (bijv. via <a href="https://contentcredentials.org/verify" target="_blank" rel="noopener">contentcredentials.org/verify</a>
+    om te bevestigen dat de afbeelding zelf nog een manifest heeft), en
+    controleer de logs van de <code>proxy</code>-container
+    (<code>docker compose logs proxy</code>).
+  </p>
+</body>
+</html>

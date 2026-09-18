@@ -175,12 +175,26 @@ DNS-server instelde).
 
 ### 4. Testen
 
-Bezoek een pagina met een afbeelding waarvan je weet dat 'ie C2PA-metadata
-bevat (bijv. een recent met ChatGPT/DALL·E, Adobe Firefly of Google
-Gemini/Imagen gegenereerde afbeelding, gedownload en ergens gehost, of
-rechtstreeks een dienst die dit soort afbeeldingen toont). Je zou een klein
-"✓ Content Credentials"-badge in de hoek van de afbeelding moeten zien, en
-een nieuwe rij op het dashboard onder "Content Credentials (C2PA)".
+De pagina moet je via **HTTP** bezoeken (niet als lokaal `file://`-bestand
+openen) — alleen dan gaat de pagina zelf ook door de proxy, wat nodig is om
+het marker-script erin te injecteren. Serveer het testbestand vanaf de
+machine waar AuthentiPi op draait:
+
+```bash
+cd proxy/test-fixtures
+python3 -m http.server 8090
+```
+
+Bezoek daarna vanaf het clientapparaat `http://<lan-ip-van-authentipi>:8090/content-marking-test.html`
+(dezelfde LAN-IP als bij de DNS/proxy-instellingen). Die pagina embedt een
+bekende C2PA-test-fixture uit de officiële `c2pa-python`-testset. Je zou een
+klein "✓ Content Credentials"-badge in de hoek van de afbeelding moeten
+zien, en een nieuwe rij op het dashboard onder "Content Credentials (C2PA)".
+
+Wil je het met echte, zelf gegenereerde content proberen: gebruik een recent
+met ChatGPT/DALL·E, Adobe Firefly of Google Gemini/Imagen gegenereerde
+afbeelding, host die zelf, en verwijs er in een eigen HTML-bestand naar op
+dezelfde manier.
 
 **Let op:** de meeste bestaande afbeeldingen op het web hebben géén
 C2PA-metadata — dit is nog een groeiende standaard. Test dus gericht met een
