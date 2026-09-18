@@ -52,6 +52,45 @@ je router/DHCP instelt om deze host als DNS-server te gebruiken. Zie
 [`dns/README.md`](dns/) (volgt) voor die stap wanneer je het op een
 Raspberry Pi als netwerk-brede resolver wilt draaien.
 
+## Testen
+
+### Automatische integratietests
+
+`tests/` bevat pytest-integratietests die tegen een draaiende stack echte
+DNS-queries doen en via de API checken of dat wel/niet tot een detectie
+leidt. Nieuwe testgevallen toevoegen (bijv. voor een nieuwe dienst in
+`rules/`) kan door `tests/test_detection.py` uit te breiden — de helpers in
+`tests/helpers.py` (`dns_query`, `wait_for_new_detection`,
+`set_category`, ...) zijn generiek herbruikbaar.
+
+```bash
+docker compose up -d
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r tests/requirements-test.txt
+pytest tests/ -v
+```
+
+Optioneel te overschrijven via env vars: `AUTHENTIPI_TEST_DNS_HOST` (default
+`127.0.0.1`) en `AUTHENTIPI_TEST_API_BASE` (default `http://localhost:8080`)
+— handig om dezelfde tests tegen een Raspberry Pi op je netwerk te draaien.
+
+### Testen met een echt client-apparaat
+
+1. Zoek het LAN-IP van de machine waar AuthentiPi op draait (op macOS:
+   `ipconfig getifaddr en0`).
+2. Zet op een ander apparaat (telefoon, laptop) de DNS-server handmatig op
+   dat IP (bv. bij een iPhone: Wi-Fi-netwerk → Configureer DNS → Handmatig).
+3. Open op dat apparaat een bekende AI-dienst uit `rules/default.yaml`
+   (bv. chatgpt.com) en kijk of er een nieuwe rij verschijnt op het
+   dashboard.
+
+**Bekende beperking op macOS/Windows met Docker Desktop:** al het
+binnenkomende verkeer naar gepubliceerde poorten wordt door Docker Desktop's
+interne VM omgezet naar één gateway-adres (`192.168.65.1`), ongeacht welk
+apparaat de query stuurde. Je ziet dus wél of iets herkend wordt, maar niet
+betrouwbaar *van welk apparaat*. Op een Raspberry Pi (native Linux, geen
+Docker Desktop-VM) werkt client-IP-herkenning wel correct.
+
 ## Domeinlijsten (`rules/`)
 
 Zie [`rules/README.md`](rules/README.md) voor het formaat en hoe je eigen
