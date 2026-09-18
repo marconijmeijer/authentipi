@@ -69,10 +69,20 @@
     bijbehorende Type- en Vertrouwd-kolom.
   </p>
   <p>
-    Zie je geen badges? Controleer eerst de logs van de
-    <code>proxy</code>-container (<code>docker compose logs proxy</code>) —
-    bij het opstarten moet daar "C2PA trust anchors geladen" in staan.
+    Zie je geen badges?
   </p>
+  <ul>
+    <li>Controleer de logs van de <code>proxy</code>-container
+      (<code>docker compose logs proxy</code>) — bij het opstarten moet daar
+      "C2PA trust anchors geladen" in staan.</li>
+    <li>Is de AuthentiPi-database ooit gereset (bv. na een update met een
+      nieuwe tabel)? Dan moet elke afbeelding hier opnieuw écht via het
+      netwerk door de proxy gaan voordat er weer een badge verschijnt. Een
+      gewone paginaherlading kan de afbeeldingen uit de browsercache halen
+      zonder ze opnieuw op te vragen — de proxy ziet ze dan niet. Forceer
+      een verse download (bv. website-data/cache voor deze pagina wissen,
+      of op iOS de pagina een paar keer omlaag trekken om te verversen).</li>
+  </ul>
 
   <hr />
   <p style="color:#888; font-size:0.8rem;">
