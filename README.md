@@ -52,6 +52,43 @@ je router/DHCP instelt om deze host als DNS-server te gebruiken. Zie
 [`dns/README.md`](dns/) (volgt) voor die stap wanneer je het op een
 Raspberry Pi als netwerk-brede resolver wilt draaien.
 
+## Combineren met PiHole
+
+AuthentiPi en PiHole kunnen naast elkaar draaien, maar niet als twee losse
+"primary/secondary" DNS-servers — een client gebruikt de tweede alleen als
+de eerste niet reageert, dan werkt maar één van de twee functies
+tegelijk. In plaats daarvan zet je ze serieel achter elkaar, met PiHole als
+de server waar clients naar wijzen (onveranderd) en AuthentiPi als PiHole's
+upstream:
+
+```
+Client → PiHole (blokkeert advertenties) → AuthentiPi (detecteert AI-domeinen) → 1.1.1.1 / 9.9.9.9
+```
+
+Instellen (aanname: PiHole en AuthentiPi draaien op aparte apparaten, dus
+geen poort-53-conflict):
+
+1. **In PiHole:** Settings → DNS → Upstream DNS Servers. Vink de
+   standaardproviders (Google, Cloudflare, ...) **uit** en voeg bij
+   "Custom 1 (IPv4)" het IP van je AuthentiPi-apparaat toe, bv.
+   `192.168.1.50#53`. Laat je ook een standaardprovider aangevinkt staan,
+   dan kan PiHole daarnaartoe in plaats van naar AuthentiPi — dan mis je
+   detecties.
+2. **In AuthentiPi:** niets aanpassen. `dns/dnsmasq.conf` blijft naar
+   1.1.1.1/9.9.9.9 forwarden, dat blijft de laatste stap in de keten.
+3. **Clients:** geen wijziging nodig, die wijzen al naar PiHole.
+
+**Belangrijke kanttekening:** met deze volgorde ziet AuthentiPi altijd het
+IP van de PiHole-server als "client" — niet het IP van het apparaat dat de
+oorspronkelijke vraag stelde. DNS-forwarding geeft de oorspronkelijke
+client niet door. Wil je per-apparaat detectie in AuthentiPi's dashboard
+behouden, draai de volgorde dan om (`Client → AuthentiPi → PiHole`, met
+AuthentiPi's IP als DNS-server in je router/DHCP-instellingen in plaats
+van PiHole's IP) — dan ziet AuthentiPi het echte client-IP en blokkeert
+PiHole nog steeds als AuthentiPi's upstream. Voor per-client detail bij de
+"PiHole eerst"-opzet kun je PiHole's eigen Query Log (Tools → Query Log)
+gebruiken en handmatig correleren op tijdstip.
+
 ## Testen
 
 ### Automatische integratietests
