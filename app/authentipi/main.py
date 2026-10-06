@@ -20,6 +20,8 @@ from .routers import (
     heuristic_settings,
     marker_settings,
     marks,
+    text_marks,
+    text_settings,
     tls_settings,
 )
 
@@ -77,5 +79,7 @@ app.include_router(marks.router)
 app.include_router(marker_settings.router)
 app.include_router(heuristic_marks.router)
 app.include_router(heuristic_settings.router)
+app.include_router(text_marks.router)
+app.include_router(text_settings.router)
 
 app.include_router(tls_settings.router)

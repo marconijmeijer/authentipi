@@ -43,4 +43,16 @@
     </p>
     {% include "_heuristic_marks_table.html" %}
   </section>
+
+  <section class="content-card">
+    <div class="section-heading"><div><p class="eyebrow">Lokale analyse</p><h2>Tekst-herkenning</h2></div><span class="badge badge-warning">Experimenteel</span></div>
+    <p class="hint">
+      <strong>Geen watermerk-detectie</strong> (zoals OpenAI's "textGrain")
+      — een generieke, Engelstalige statistische inschatting per paragraaf.
+      Heeft aantoonbare foutmarges (zie README). Alleen actief als de
+      <code>classifier</code>-service draait én aangezet is op de
+      instellingenpagina.
+    </p>
+    {% include "_text_marks_table.html" %}
+  </section>
 {% endblock %}

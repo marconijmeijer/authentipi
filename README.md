@@ -70,6 +70,13 @@ getest.
   hieronder), en visueel duidelijk anders gestyled dan de C2PA-badge
   (andere positie, eigen kleuren, toont het percentage) zodat een
   onzekere gok nooit hetzelfde oogt als een geverifieerde claim.
+- Dezelfde `classifier`-service doet ook **tekstherkenning per paragraaf**
+  (`openai-community/roberta-base-openai-detector`, alleen Engelstalig).
+  Dit is **geen** detectie van een specifiek watermerk zoals OpenAI's
+  "textGrain" (okt. 2026) — dat vereist de geheime sleutel van de
+  aanbieder zelf. In tegenstelling tot afbeeldingen gebeurt markering hier
+  direct, synchroon, in de HTML (de addon heeft de paginatekst al in
+  handen), niet via een los client-side check-script.
 
 ## Lokaal draaien (testen, geen echte netwerk-DNS)
 
@@ -346,6 +353,51 @@ bijstelt, in plaats van alleen "wel/geen badge". Zet de debug-modus weer
 uit als je klaar bent met kalibreren — hij is bewust bedoeld als tijdelijk
 hulpmiddel, niet als permanente stand (elke afbeelding zonder manifest
 krijgt er dan een zichtbare badge bij, ook de overduidelijk echte).
+
+## Experimentele tekst-herkenning testen (Fase 3)
+
+**Dit is géén detector van een watermerk zoals OpenAI's "textGrain"**
+(aangekondigd 5 oktober 2026). TextGrain verwerkt een statistisch signaal
+in de woordkeuzes van het model zelf, verifieerbaar alleen met OpenAI's
+eigen geheime sleutel/detector — dat kan een derde partij niet lokaal
+nabouwen, net zoals we Google's SynthID niet zelf kunnen verifiëren. Wat
+hier draait is een losstaande, generieke statistische tekst-classifier
+(`openai-community/roberta-base-openai-detector`, **alleen Engelstalig**)
+die per `<p>`-paragraaf een gok doet of de tekst AI-aandoend is — net zo
+onbetrouwbaar (en voor tekst algemeen bekend als eerder onbetrouwbaarder
+dan voor beeld) als de beeld-classifier hierboven.
+
+### Hoe het werkt
+
+In tegenstelling tot afbeeldingen (losse resource, client-side gecheckt
+door `marker.js` ná het laden) heeft de proxy-addon de volledige paginatekst
+al in handen vóórdat de pagina naar de browser gaat. Classificatie en
+markering gebeuren daarom direct, synchroon, in de HTML zelf — geen los
+script of check-call nodig. Kosten: het laden van pagina's met veel
+paragrafen kan iets trager worden zolang dit aanstaat.
+
+### Instellen en testen
+
+1. Classifier-service moet draaien (zie stap 1 hierboven — dezelfde
+   service doet nu zowel beeld- als tekstclassificatie).
+2. Instellingenpagina → "Experimentele tekst-herkenning" → aanzetten.
+   Standaarddrempel 0,8 (hoger dan bij afbeeldingen, omdat dit model op
+   korte/informele tekst sneller fout zit).
+3. Open [`proxy/test-fixtures/text-marking-test.html`](proxy/test-fixtures/text-marking-test.html)
+   via HTTP door de proxy (zelfde aanpak als de C2PA-testpagina) — dit is
+   de testset die je zelf kunt gebruiken: bewust casual/menselijke en
+   formeel/AI-aandoende Engelse paragrafen, plus een te-korte paragraaf om
+   te bevestigen dat die genegeerd wordt.
+4. Gebruik ook hier **debug-modus** om de werkelijke score per paragraaf
+   te zien terwijl je de drempel bijstelt (zelfde knop/gedrag als bij
+   afbeeldingen).
+
+**Concreet gemeten tijdens het testen:** op de testpagina kreeg niet de
+paragraaf die bewust overdreven formeel/AI-achtig geschreven was de hoogste
+score (57%, onder de drempel), maar een kort, instructief zinnetje met een
+code-referentie (68%, boven de drempel) — een directe, eigen illustratie
+van hoe onvoorspelbaar dit soort classifiers zijn. Behandel de uitkomst
+als gok, niet als feit.
 
 ## TLS-uitzonderingen en foutlog
 

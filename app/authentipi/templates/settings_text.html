@@ -1,0 +1,74 @@
+{% extends "settings_layout.html" %}
+{% block settings_content %}
+  <h2>Experimentele tekst-herkenning (Fase 3)</h2>
+  <p class="hint">
+    <strong>Let op:</strong> dit is géén detector van een specifiek
+    watermerk zoals OpenAI's "textGrain" — dat vereist de geheime sleutel
+    van de aanbieder zelf en kan niet lokaal nagebouwd worden. Dit is een
+    generieke, statistische schatting van een lokaal ML-model
+    (<code>openai-community/roberta-base-openai-detector</code>) per
+    paragraaf, <strong>alleen Engelstalig</strong> en met aantoonbare
+    foutmarges — test dit zelf voor je erop vertrouwt. Vereist de losse
+    <code>classifier</code>-service
+    (<code>docker compose --profile experimental up -d</code>, zie README).
+    Markering gebeurt direct in de pagina (geen los badge-script nodig),
+    wat het laden van pagina's met tekstherkenning iets kan vertragen.
+  </p>
+  <form method="post" action="/settings/text">
+    <label class="checkbox-row">
+      <input type="checkbox" name="enabled" {% if text.enabled %}checked{% endif %} />
+      Experimentele tekstherkenning aanzetten
+    </label>
+    <label class="field-row">
+      Drempel (0–1, hoger = minder vals-positief)
+      <input type="number" name="threshold" value="{{ text.threshold }}" min="0" max="1" step="0.05" />
+    </label>
+    <label class="checkbox-row">
+      <input type="checkbox" name="debug" {% if text.debug %}checked{% endif %} />
+      Debug-modus: markeer élke geclassificeerde paragraaf, ook onder de
+      drempel — handig om te kalibreren, bedoeld als tijdelijk.
+    </label>
+    <label class="field-row">
+      Icoon
+      <input type="text" name="icon" value="{{ text.icon }}" maxlength="4" size="4" id="text-icon" />
+    </label>
+    <label class="field-row">
+      Tekst
+      <input type="text" name="text" value="{{ text.text }}" maxlength="60" id="text-text" />
+    </label>
+    <label class="field-row">
+      Tekstkleur
+      <input type="color" name="text_color" value="{{ text.text_color }}" id="text-text-color" />
+    </label>
+    <label class="field-row">
+      Achtergrondkleur
+      <input type="color" name="bg_color" value="{{ text.bg_color }}" id="text-bg-color" />
+    </label>
+
+    <div class="preview-area"><p class="eyebrow">Voorbeeld van je badge</p>
+    <div id="text-preview" class="marker-preview"></div></div>
+
+    <button type="submit">Opslaan</button>
+  </form>
+
+  <script>
+    (function () {
+      var icon = document.getElementById("text-icon");
+      var text = document.getElementById("text-text");
+      var textColor = document.getElementById("text-text-color");
+      var bgColor = document.getElementById("text-bg-color");
+      var preview = document.getElementById("text-preview");
+
+      function render() {
+        preview.textContent = (icon.value ? icon.value + " " : "") + text.value + " · 91%";
+        preview.style.color = textColor.value;
+        preview.style.background = bgColor.value;
+      }
+
+      [icon, text, textColor, bgColor].forEach(function (el) {
+        el.addEventListener("input", render);
+      });
+      render();
+    })();
+  </script>
+{% endblock %}

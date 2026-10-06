@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>AuthentiPi — tekst-marking testpagina</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 680px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }
+    .variant { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid #eee; }
+    .expect { color: #555; font-size: 0.9rem; }
+    code { background: #f2f2f2; padding: 0.1rem 0.3rem; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <h1>AuthentiPi — tekst-marking testpagina (Fase 3)</h1>
+  <p>
+    Open via <strong>HTTP</strong> (niet als lokaal <code>file://</code>),
+    met de proxy op poort 8081 ingesteld en Fase 3 tekst-herkenning aan op
+    de instellingenpagina. Deze testset bevat bewust zowel casual/menselijk
+    aandoende als formeel/AI-aandoende paragrafen (Engelstalig — het model
+    is alleen Engelstalig getraind), zodat je kunt zien of het onderscheid
+    maakt.
+  </p>
+
+  <div class="variant">
+    <h2>1. Casual, menselijk aandoend</h2>
+    <p class="expect">Verwacht: geen badge (of in debug-modus een lage score).</p>
+    <p>omg i cant believe we lost the game last night lol. my brother was so mad he threw his controller across the room haha. anyway im gonna go grab some food, im starving rn and theres literally nothing in the fridge except old leftovers from tuesday.</p>
+  </div>
+
+  <div class="variant">
+    <h2>2. Formeel, AI-aandoend</h2>
+    <p class="expect">Verwacht: badge (hoge score).</p>
+    <p>The implementation of renewable energy infrastructure represents a critical pathway toward achieving sustainable development goals. Furthermore, it is essential to consider the economic implications of transitioning away from fossil fuel dependency, as this shift necessitates substantial capital investment and coordinated policy frameworks across multiple governmental sectors.</p>
+  </div>
+
+  <div class="variant">
+    <h2>3. Neutraal, beschrijvend</h2>
+    <p class="expect">Verwacht: meestal geen badge, maar minder zeker dan variant 1 — dit is precies het soort grensgeval waar deze classifiers minder betrouwbaar worden.</p>
+    <p>The cat sat on the windowsill for most of the afternoon, watching birds move between the branches of the old oak tree in the garden. Rain had started falling around two o'clock, and small puddles were slowly forming on the patio stones below.</p>
+  </div>
+
+  <div class="variant">
+    <h2>4. Te kort om te classificeren</h2>
+    <p class="expect">Verwacht: genegeerd (onder de minimale lengte van 60 tekens), geen badge, geen rapportage.</p>
+    <p>Too short to matter.</p>
+  </div>
+
+  <p>
+    Elke gemarkeerde paragraaf hierboven zou ook een rij moeten opleveren
+    op het AuthentiPi-dashboard onder "Tekst-herkenning".
+  </p>
+  <p>
+    Zie je geen badges? Controleer <code>docker compose logs proxy</code>
+    en of de <code>classifier</code>-service draait
+    (<code>docker compose --profile experimental up -d</code>).
+  </p>
+</body>
+</html>

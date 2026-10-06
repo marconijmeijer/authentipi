@@ -19,6 +19,11 @@ ARG MODEL_NAME=umm-maybe/AI-image-detector
 ENV AUTHENTIPI_CLASSIFIER_MODEL=${MODEL_NAME}
 RUN python3 -c "from transformers import pipeline; pipeline('image-classification', model='${MODEL_NAME}')"
 
+# Same idea for the text classifier (~500MB, roberta-base-sized).
+ARG TEXT_MODEL_NAME=openai-community/roberta-base-openai-detector
+ENV AUTHENTIPI_TEXT_CLASSIFIER_MODEL=${TEXT_MODEL_NAME}
+RUN python3 -c "from transformers import pipeline; pipeline('text-classification', model='${TEXT_MODEL_NAME}')"
+
 EXPOSE 8082
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8082"]

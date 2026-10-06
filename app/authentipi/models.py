@@ -108,6 +108,49 @@ class HeuristicMark(Base):
     above_threshold: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class TextMarkerSettings(Base):
+    """Singleton row (id=1) configuring Fase 3's experimental, generic
+    AI-text classifier. NOT a detector of any provider's actual watermark
+    (e.g. OpenAI's "textGrain") -- that needs the provider's own secret
+    key. This is a stylistic guess, English-only, kept in its own table so
+    it never gets confused with the (also experimental) image classifier's
+    settings or with a verified claim."""
+
+    __tablename__ = "text_marker_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    icon: Mapped[str] = mapped_column(String, default="✐")
+    text: Mapped[str] = mapped_column(String, default="Mogelijk AI-tekst (experimenteel)")
+    text_color: Mapped[str] = mapped_column(String, default="#3a1f4d")
+    bg_color: Mapped[str] = mapped_column(String, default="#d9b8ff")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    threshold: Mapped[float] = mapped_column(Float, default=0.8)
+    debug: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class TextMark(Base):
+    """A local ML model's guess that one paragraph of a page's text looks
+    AI-generated. Explicitly NOT a verified claim -- see
+    TextMarkerSettings and README "Fase 3"."""
+
+    __tablename__ = "text_marks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    timestamp: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow, index=True
+    )
+    url: Mapped[str] = mapped_column(String, index=True)
+    client_ip: Mapped[str] = mapped_column(String, index=True)
+    paragraph_index: Mapped[int] = mapped_column(Integer)
+    # First ~160 chars only -- enough to recognize the paragraph on the
+    # dashboard without storing/retaining full page text.
+    excerpt: Mapped[str] = mapped_column(String)
+    label: Mapped[str] = mapped_column(String)
+    score: Mapped[float] = mapped_column(Float)
+    model_name: Mapped[str] = mapped_column(String)
+    above_threshold: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
 class TLSMigration(Base):
     __tablename__ = 'tls_migration'
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

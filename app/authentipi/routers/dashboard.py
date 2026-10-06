@@ -16,11 +16,14 @@ from ..models import (
     HeuristicMarkerSettings,
     ImageMark,
     MarkerSettings,
+    TextMark,
+    TextMarkerSettings,
 )
 from ..rules import ruleset
 from .api import stats
 from .heuristic_settings import _as_dict as heuristic_settings_dict
 from .marker_settings import _as_dict as marker_settings_dict
+from .text_settings import _as_dict as text_settings_dict
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -48,6 +51,7 @@ def dashboard(request: Request):
         heuristic_marks, heuristic_has_more = _paginate(
             session, HeuristicMark, HeuristicMark.timestamp, 0, PAGE_SIZE
         )
+        text_marks, text_has_more = _paginate(session, TextMark, TextMark.timestamp, 0, PAGE_SIZE)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -64,6 +68,10 @@ def dashboard(request: Request):
             "heuristic_offset": 0,
             "heuristic_limit": PAGE_SIZE,
             "heuristic_has_more": heuristic_has_more,
+            "text_marks": text_marks,
+            "text_offset": 0,
+            "text_limit": PAGE_SIZE,
+            "text_has_more": text_has_more,
             "stats": stats(),
         },
     )
@@ -118,6 +126,23 @@ def heuristic_marks_partial(request: Request, offset: int = 0, limit: int = PAGE
             "heuristic_offset": offset,
             "heuristic_limit": limit,
             "heuristic_has_more": has_more,
+        },
+    )
+
+
+@router.get("/partials/text-marks")
+def text_marks_partial(request: Request, offset: int = 0, limit: int = PAGE_SIZE):
+    offset = max(0, offset)
+    with SessionLocal() as session:
+        text_marks, has_more = _paginate(session, TextMark, TextMark.timestamp, offset, limit)
+    return templates.TemplateResponse(
+        request,
+        "_text_marks_table.html",
+        {
+            "text_marks": text_marks,
+            "text_offset": offset,
+            "text_limit": limit,
+            "text_has_more": has_more,
         },
     )
 
@@ -221,6 +246,42 @@ def update_heuristic_settings(
         row.debug = debug == "on"
         session.commit()
     return RedirectResponse(url="/settings/heuristic", status_code=303)
+
+
+@router.get("/settings/text")
+def settings_text(request: Request):
+    with SessionLocal() as session:
+        text = text_settings_dict(session.get(TextMarkerSettings, 1))
+    return templates.TemplateResponse(
+        request, "settings_text.html", {"text": text, "active": "text"}
+    )
+
+
+@router.post("/settings/text")
+def update_text_settings(
+    request: Request,
+    icon: str = Form(""),
+    text: str = Form("Mogelijk AI-tekst (experimenteel)"),
+    text_color: str = Form("#3a1f4d"),
+    bg_color: str = Form("#d9b8ff"),
+    threshold: float = Form(0.8),
+    enabled: str = Form(""),
+    debug: str = Form(""),
+):
+    with SessionLocal() as session:
+        row = session.get(TextMarkerSettings, 1)
+        if row is None:
+            row = TextMarkerSettings(id=1)
+            session.add(row)
+        row.icon = icon
+        row.text = text
+        row.text_color = text_color
+        row.bg_color = bg_color
+        row.threshold = max(0.0, min(threshold, 1.0))
+        row.enabled = enabled == "on"
+        row.debug = debug == "on"
+        session.commit()
+    return RedirectResponse(url="/settings/text", status_code=303)
 
 
 @router.get("/settings/rules")

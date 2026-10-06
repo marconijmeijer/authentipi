@@ -135,3 +135,50 @@ def set_heuristic_settings(**overrides) -> dict:
     resp = requests.post(f"{API_BASE}/api/heuristic-settings", json=current, timeout=5)
     resp.raise_for_status()
     return resp.json()
+
+
+def report_text_mark(
+    url: str,
+    client_ip: str = "203.0.113.5",
+    paragraph_index: int = 0,
+    excerpt: str = "Test paragraph excerpt.",
+    label: str = "Fake",
+    score: float = 0.9,
+    model_name: str = "test-text-model",
+    above_threshold: bool = True,
+) -> None:
+    resp = requests.post(
+        f"{API_BASE}/api/text-marks",
+        json={
+            "url": url,
+            "client_ip": client_ip,
+            "paragraph_index": paragraph_index,
+            "excerpt": excerpt,
+            "label": label,
+            "score": score,
+            "model_name": model_name,
+            "above_threshold": above_threshold,
+        },
+        timeout=5,
+    )
+    resp.raise_for_status()
+
+
+def list_text_marks(limit: int = 50) -> list[dict]:
+    resp = requests.get(f"{API_BASE}/api/text-marks", params={"limit": limit}, timeout=5)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def get_text_settings() -> dict:
+    resp = requests.get(f"{API_BASE}/api/text-settings", timeout=5)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def set_text_settings(**overrides) -> dict:
+    current = get_text_settings()
+    current.update(overrides)
+    resp = requests.post(f"{API_BASE}/api/text-settings", json=current, timeout=5)
+    resp.raise_for_status()
+    return resp.json()
