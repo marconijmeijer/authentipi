@@ -74,9 +74,14 @@ getest.
   (`openai-community/roberta-base-openai-detector`, alleen Engelstalig).
   Dit is **geen** detectie van een specifiek watermerk zoals OpenAI's
   "textGrain" (okt. 2026) — dat vereist de geheime sleutel van de
-  aanbieder zelf. In tegenstelling tot afbeeldingen gebeurt markering hier
-  direct, synchroon, in de HTML (de addon heeft de paginatekst al in
-  handen), niet via een los client-side check-script.
+  aanbieder zelf. Markering werkt hier, net als bij afbeeldingen, via
+  `marker.js` in de browser: dat script leest de live paragraaftekst pas
+  nadat de pagina volledig is gerenderd en stuurt die naar de backend om
+  te classificeren. Dat is bewust zo gebouwd (niet door de addon serverside
+  uit de ruwe HTML te knippen), omdat sites als nu.nl artikeltekst
+  client-side vanuit ingebed JSON-state renderen — serverside geïnjecteerde
+  badges werden daar domweg overschreven zodra React de pagina opnieuw
+  rendert.
 
 ## Lokaal draaien (testen, geen echte netwerk-DNS)
 
@@ -369,12 +374,23 @@ dan voor beeld) als de beeld-classifier hierboven.
 
 ### Hoe het werkt
 
-In tegenstelling tot afbeeldingen (losse resource, client-side gecheckt
-door `marker.js` ná het laden) heeft de proxy-addon de volledige paginatekst
-al in handen vóórdat de pagina naar de browser gaat. Classificatie en
-markering gebeuren daarom direct, synchroon, in de HTML zelf — geen los
-script of check-call nodig. Kosten: het laden van pagina's met veel
-paragrafen kan iets trager worden zolang dit aanstaat.
+Net als bij afbeeldingen doet `marker.js` dit client-side, ná het laden: het
+script leest de `textContent` van elke `<p>` rechtstreeks uit de live DOM,
+stuurt kandidaat-paragrafen (≥60 tekens, nog niet eerder gecheckt) gebundeld
+naar `/api/text-marks/classify` via de bestaande same-origin reverse-proxy,
+en plaatst een badge op basis van het antwoord.
+
+Dit was eerst andersom gebouwd: de proxy-addon knipte `<p>`-tags uit de ruwe
+HTML-respons en markeerde die direct, synchroon, vóórdat de pagina naar de
+browser ging — geen los script nodig, in theorie sneller. Dat werkte op
+statische pagina's (de testset hieronder, agilemind.nl), maar niet op
+nu.nl: die site rendert de artikeltekst client-side vanuit een ingebed
+`window.__INITIAL_STATE__` JSON-blok (React-hydratie), dus de ruwe
+server-HTML bevat niet de tekst die de bezoeker uiteindelijk ziet — elke
+serverside geïnjecteerde badge werd zodra React rendert gewoon overschreven.
+Lezen uit de live DOM, zoals bij afbeeldingen, omzeilt dat probleem
+structureel. Kosten: een extra round-trip per pagina in plaats van niets
+erbij op de HTML, maar dat was bij afbeeldingen al zo en viel daar niet op.
 
 ### Instellen en testen
 

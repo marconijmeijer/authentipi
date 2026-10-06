@@ -15,7 +15,6 @@ trade-off of the MITM approach.
 
 from __future__ import annotations
 
-import html
 import io
 import json
 import logging
@@ -69,14 +68,6 @@ IMAGE_MIME_TYPES = {
     "image/heic",
     "image/heif",
 }
-
-# Best-effort <p>...</p> extraction for Fase 3 text classification -- a
-# real HTML parser would handle malformed/unclosed tags better, but this
-# regex is cheap and good enough for well-formed pages (see README
-# "Bekende beperkingen").
-PARAGRAPH_RE = re.compile(rb"<p\b[^>]*>(.*?)</p\s*>", re.IGNORECASE | re.DOTALL)
-TAG_RE = re.compile(rb"<[^>]+>")
-MIN_PARAGRAPH_CHARS = 60
 
 TRUST_ANCHORS_URL = "https://contentcredentials.org/trust/anchors.pem"
 
@@ -161,10 +152,24 @@ class AuthentiPiAddon:
         whatever page they're loaded from) without AuthentiPi needing its
         own trusted certificate."""
         sub_path = flow.request.path[len(PROXY_PATH_PREFIX):] or "/"
-        # Third-party pages may only reach the read-only marker endpoints.
-        allowed = {"/static/marker.js", "/api/marks/check", "/api/marker-settings",
-                   "/api/heuristic-marks/check", "/api/heuristic-settings"}
-        if flow.request.method != "GET" or sub_path.split("?", 1)[0] not in allowed:
+        path = sub_path.split("?", 1)[0]
+        # Third-party pages may only reach the read-only marker endpoints,
+        # plus the one write endpoint marker.js needs to classify text
+        # straight from the live DOM (see routers/text_marks.py for the
+        # trust trade-off that implies).
+        allowed_get = {
+            "/static/marker.js",
+            "/api/marks/check",
+            "/api/marker-settings",
+            "/api/heuristic-marks/check",
+            "/api/heuristic-settings",
+            "/api/text-settings",
+        }
+        allowed_post = {"/api/text-marks/classify"}
+        method_ok = (flow.request.method == "GET" and path in allowed_get) or (
+            flow.request.method == "POST" and path in allowed_post
+        )
+        if not method_ok:
             flow.response = http.Response.make(404, b"Not found")
             return
         target = f"{INTERNAL_APP_URL}{sub_path}"
@@ -174,11 +179,14 @@ class AuthentiPiAddon:
                 url=target,
                 data=flow.request.content,
                 headers={
-                    k: v
-                    for k, v in flow.request.headers.items()
-                    if k.lower() not in ("host", "content-length")
+                    **{
+                        k: v
+                        for k, v in flow.request.headers.items()
+                        if k.lower() not in ("host", "content-length")
+                    },
+                    "X-Forwarded-For": self._client_ip(flow),
                 },
-                timeout=10,
+                timeout=20,
             )
         except requests.RequestException:
             logger.warning("AuthentiPi backend onbereikbaar voor %s", target)
@@ -352,148 +360,11 @@ class AuthentiPiAddon:
         flow.response.headers.pop("Content-Security-Policy-Report-Only", None)
 
         content = CSP_META_TAG_RE.sub(b"", flow.response.content)
-        content = self._mark_text(flow, content)
         if b"</head>" in content:
             content = content.replace(b"</head>", MARKER_SCRIPT_TAG + b"</head>", 1)
         elif b"</body>" in content:
             content = content.replace(b"</body>", MARKER_SCRIPT_TAG + b"</body>", 1)
         flow.response.content = content
-
-    def _mark_text(self, flow: http.HTTPFlow, content: bytes) -> bytes:
-        """Fase 3, experimental: classify each <p> paragraph on the page
-        and highlight the ones that look AI-written directly in the HTML.
-        Unlike images (fetched as their own resource, checked client-side
-        by marker.js after the fact), the addon already has the full page
-        text here, synchronously, before it's sent to the browser -- so
-        this marks the HTML directly instead of needing a separate
-        check-and-badge round trip."""
-        try:
-            settings_resp = requests.get(f"{INTERNAL_APP_URL}/api/text-settings", timeout=2)
-            settings_resp.raise_for_status()
-            settings = settings_resp.json()
-        except requests.RequestException:
-            return content
-        if not settings.get("enabled"):
-            return content
-
-        matches = list(PARAGRAPH_RE.finditer(content))
-        candidates = []
-        for match in matches:
-            plain = TAG_RE.sub(b" ", match.group(1))
-            try:
-                plain_text = html.unescape(" ".join(plain.decode("utf-8", "ignore").split()))
-            except Exception:
-                continue
-            if len(plain_text) >= MIN_PARAGRAPH_CHARS:
-                candidates.append((match, plain_text))
-
-        if not candidates:
-            return content
-
-        try:
-            classify_resp = requests.post(
-                f"{CLASSIFIER_URL}/classify-text",
-                json={"texts": [text for _, text in candidates]},
-                timeout=15,
-            )
-            classify_resp.raise_for_status()
-            classify_result = classify_resp.json()
-            results = classify_result.get("results", [])
-        except requests.RequestException:
-            logger.debug("text-classifier niet bereikbaar voor %s", flow.request.pretty_url)
-            return content
-
-        if len(results) != len(candidates):
-            return content
-
-        threshold = settings.get("threshold", 0.8)
-        debug = settings.get("debug", False)
-        model_name = classify_result.get("model", "unknown")
-
-        # Process from the last match backward so earlier (lower-index,
-        # not-yet-processed) match spans stay valid as this splices the
-        # growing byte string -- matches never overlap in the original
-        # content, so edits at/after a later match never shift an earlier
-        # one's start/end.
-        ordered = sorted(
-            zip(candidates, results), key=lambda item: item[0][0].start(), reverse=True
-        )
-        for (match, plain_text), result in ordered:
-            predictions = result.get("predictions", [])
-            fake = next((p for p in predictions if p.get("label", "").lower() == "fake"), None)
-            if fake is None:
-                continue
-            score = fake.get("score", 0.0)
-            above_threshold = score >= threshold
-            if not above_threshold and not debug:
-                continue
-
-            index = matches.index(match)
-            content = self._splice_text_badge(content, match, score, above_threshold, settings)
-            self._report_text_mark(flow, index, plain_text, "Fake", score, model_name, above_threshold)
-
-        return content
-
-    def _splice_text_badge(
-        self,
-        content: bytes,
-        match: re.Match,
-        score: float,
-        above_threshold: bool,
-        settings: dict,
-    ) -> bytes:
-        pct = round(score * 100)
-        if above_threshold:
-            icon = settings.get("icon", "✐")
-            label_text = settings.get("text", "Mogelijk AI-tekst (experimenteel)")
-            badge_label = f"{icon} {label_text} · {pct}%"
-            style = f"background:{settings.get('bg_color', '#d9b8ff')};color:{settings.get('text_color', '#3a1f4d')};"
-        else:
-            badge_label = f"\U0001F41E debug: {pct}% (onder drempel)"
-            style = "background:rgba(120,120,120,0.85);color:#fff;border:1px dashed #fff;"
-
-        badge_html = (
-            '<div style="position:absolute;top:-11px;right:8px;z-index:2147483647;'
-            "font:600 11px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;"
-            "padding:2px 6px;border-radius:999px;pointer-events:none;"
-            f'box-shadow:0 1px 3px rgba(0,0,0,0.4);{style}">'
-            f"{html.escape(badge_label)}</div>"
-        ).encode("utf-8")
-        wrapped = (
-            b'<div style="position:relative;margin-top:14px;">'
-            + match.group(0)
-            + badge_html
-            + b"</div>"
-        )
-        return content[: match.start()] + wrapped + content[match.end() :]
-
-    def _report_text_mark(
-        self,
-        flow: http.HTTPFlow,
-        paragraph_index: int,
-        excerpt: str,
-        label: str,
-        score: float,
-        model_name: str,
-        above_threshold: bool,
-    ) -> None:
-        try:
-            requests.post(
-                f"{INTERNAL_APP_URL}/api/text-marks",
-                json={
-                    "url": flow.request.pretty_url,
-                    "client_ip": self._client_ip(flow),
-                    "paragraph_index": paragraph_index,
-                    "excerpt": excerpt[:160],
-                    "label": label,
-                    "score": score,
-                    "model_name": model_name,
-                    "above_threshold": above_threshold,
-                },
-                timeout=3,
-            )
-        except requests.RequestException:
-            logger.warning("kon tekst-detectie niet rapporteren aan backend")
 
 
 addons = [AuthentiPiAddon()]

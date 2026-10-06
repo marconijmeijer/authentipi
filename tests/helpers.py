@@ -182,3 +182,13 @@ def set_text_settings(**overrides) -> dict:
     resp = requests.post(f"{API_BASE}/api/text-settings", json=current, timeout=5)
     resp.raise_for_status()
     return resp.json()
+
+
+def classify_text(url: str, texts: list[str]) -> dict:
+    resp = requests.post(
+        f"{API_BASE}/api/text-marks/classify",
+        json={"url": url, "texts": texts},
+        timeout=20,
+    )
+    resp.raise_for_status()
+    return resp.json()

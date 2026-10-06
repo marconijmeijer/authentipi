@@ -35,15 +35,15 @@
     }
   }
 
-  function addBadge(img, label, title, style) {
-    var wrapper = img.parentElement;
-    if (!badgedElements.has(img)) {
+  function addBadge(el, label, title, style, wrapperDisplay) {
+    var wrapper = el.parentElement;
+    if (!badgedElements.has(el)) {
       wrapper = document.createElement("span");
       wrapper.style.position = "relative";
-      wrapper.style.display = "inline-block";
-      img.parentNode.insertBefore(wrapper, img);
-      wrapper.appendChild(img);
-      badgedElements.add(img);
+      wrapper.style.display = wrapperDisplay || "inline-block";
+      el.parentNode.insertBefore(wrapper, el);
+      wrapper.appendChild(el);
+      badgedElements.add(el);
     }
 
     var badge = document.createElement("div");
@@ -190,9 +190,116 @@
     },
   });
 
+  // Fase 3's experimental text classifier works differently from the image
+  // sources above: images are checked by URL against marks the proxy
+  // already created server-side, but text paragraphs have to be read from
+  // the live, post-hydration DOM (some sites, e.g. React SPAs, render
+  // article text from embedded JSON state -- any badge spliced into the
+  // raw server HTML gets wiped out when that happens) and classified via a
+  // single batched call per scan.
+  var MIN_PARAGRAPH_CHARS = 60;
+  var textConfig = {
+    icon: "✐",
+    text: "Mogelijk AI-tekst (experimenteel)",
+    text_color: "#3a1f4d",
+    bg_color: "#d9b8ff",
+  };
+  // Text already submitted for classification, keyed by its own content
+  // (not the element) -- so a paragraph whose text actually changes later
+  // gets re-checked, but repeated scans don't keep re-submitting the same
+  // unchanged paragraph while it's still waiting on the classifier or sat
+  // just under the threshold.
+  var checkedTexts = new Set();
+
+  fetch(API_BASE + "/api/text-settings")
+    .then(function (resp) {
+      return resp.ok ? resp.json() : null;
+    })
+    .then(function (cfg) {
+      if (cfg) textConfig = cfg;
+    })
+    .catch(function () {
+      /* keep defaults */
+    });
+
+  function renderTextBadge(result) {
+    var pct = Math.round((result.score || 0) * 100);
+    var debugRow = result.above_threshold === false;
+
+    var label = debugRow
+      ? "\u{1F41E} debug: " + pct + "% (onder drempel)"
+      : (textConfig.icon ? textConfig.icon + " " : "") + textConfig.text + " · " + pct + "%";
+
+    var title = debugRow
+      ? "Debug-modus: score haalde de ingestelde drempel niet, normaal zou dit " +
+        "geen badge krijgen. Alleen zichtbaar omdat debug-modus aanstaat."
+      : "Experimentele, niet-geverifieerde schatting van een lokaal tekstmodel. " +
+        "Kan fout zitten -- geen cryptografisch bewijs, en geen detectie van een " +
+        "eventueel echt watermerk (zoals OpenAI's textGrain), alleen een " +
+        "statistische gok op schrijfstijl.";
+
+    var style = debugRow
+      ? "background:rgba(120,120,120,0.85);color:#fff;border:1px dashed #fff;"
+      : "background:" + textConfig.bg_color + ";color:" + textConfig.text_color + ";";
+
+    return { label: label, title: title, style: style };
+  }
+
+  function sendTextBatch(slice) {
+    var texts = slice.map(function (c) {
+      return c.text;
+    });
+    fetch(API_BASE + "/api/text-marks/classify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: location.href, texts: texts }),
+    })
+      .then(function (resp) {
+        return resp.ok ? resp.json() : null;
+      })
+      .then(function (data) {
+        if (!data) {
+          // Request failed server-side -- let these get retried on a
+          // later scan instead of silently giving up on them forever.
+          slice.forEach(function (c) {
+            checkedTexts.delete(c.text);
+          });
+          return;
+        }
+        (data.results || []).forEach(function (result) {
+          var candidate = slice[result.index];
+          if (!candidate) return;
+          var rendered = renderTextBadge(result);
+          addBadge(candidate.el, rendered.label, rendered.title, "bottom:4px;right:4px;" + rendered.style, "block");
+        });
+      })
+      .catch(function () {
+        slice.forEach(function (c) {
+          checkedTexts.delete(c.text);
+        });
+      });
+  }
+
+  function scanText() {
+    var candidates = [];
+    Array.prototype.slice.call(document.querySelectorAll("p")).forEach(function (p) {
+      if (badgedElements.has(p)) return;
+      var text = p.textContent.trim();
+      if (text.length < MIN_PARAGRAPH_CHARS) return;
+      if (checkedTexts.has(text)) return;
+      checkedTexts.add(text);
+      candidates.push({ el: p, text: text });
+    });
+
+    for (var i = 0; i < candidates.length; i += BATCH_SIZE) {
+      sendTextBatch(candidates.slice(i, i + BATCH_SIZE));
+    }
+  }
+
   function scanAll() {
     scanC2pa();
     scanHeuristic();
+    scanText();
   }
 
   var debounceTimer = null;
